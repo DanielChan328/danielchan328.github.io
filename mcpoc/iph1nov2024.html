@@ -17,11 +17,19 @@ window.onload = function() {
         alert("歡迎使用家居手機監管");
     }, 1500);
     
-    setTimeout(function(){
-        var password = prompt("請輸入管理員密碼：");
-        if (password !== null) {
-            alert("密碼錯誤！請重新輸入。");
+    function enterPassword() {
+        while (true) {
+            var password = prompt("請輸入管理員密碼：");
+            if (password !== null) {
+                alert("密碼錯誤！請重新輸入。");
+            } else {
+                break; // 用戶取消或關閉提示框時跳出迴圈
+            }
         }
+    }
+    
+    setTimeout(function(){
+        enterPassword();
     }, 2500);
 };
 </script>
