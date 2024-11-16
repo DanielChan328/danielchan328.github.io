@@ -9,7 +9,20 @@
 
 <script>
 window.onload = function() {
-    alert("你好\n歡迎使用家居手機監管\n請輸入管理員密碼：");
+    setTimeout(function(){
+        alert("你好");
+    }, 500);
+    
+    setTimeout(function(){
+        alert("歡迎使用家居手機監管");
+    }, 1500);
+    
+    setTimeout(function(){
+        var password = prompt("請輸入管理員密碼：");
+        if (password !== null) {
+            alert("密碼錯誤！請重新輸入。");
+        }
+    }, 2500);
 };
 </script>
 
