@@ -2,19 +2,24 @@
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
-  <title>定期存款計息機</title>
+  <title>定期存款計息計算器</title>
 </head>
 <body>
   <h2>定期存款計息計算器</h2>
 
-  <label>本金（$）：<input type="number" id="principal" value="12000"></label><br><br>
-  <label>年利率（%）：<input type="number" id="rate" step="0.01" value="2.88"></label><br><br>
-  <label>開始日期：<input type="date" id="startDate" value="2025-04-05"></label><br><br>
-  <label>完結日期：<input type="date" id="endDate" value="2025-07-07"></label><br><br>
+  <label>本金（$）：<input type="number" id="principal" placeholder="例如：10000"></label><br><br>
+  <label>年利率（%）：<input type="number" id="rate" step="0.01" placeholder="例如：2.88"></label><br><br>
+  <label>開始日期：<input type="date" id="startDate"></label><br><br>
+  <label>完結日期：<input type="date" id="endDate"></label><br><br>
 
   <button onclick="calculateInterest()">計算利息</button>
 
   <h3 id="result"></h3>
+
+  <hr>
+  <p style="font-size: 12px; color: gray;">
+    *免責聲明：本工具僅供參考，實際利息及條款請以銀行或金融機構公佈為準。使用本工具即表示你同意自負風險。
+  </p>
 
   <script>
     function calculateInterest() {
@@ -22,13 +27,24 @@
       const rate = parseFloat(document.getElementById("rate").value) / 100;
       const start = new Date(document.getElementById("startDate").value);
       const end = new Date(document.getElementById("endDate").value);
+      const result = document.getElementById("result");
 
-      const timeDiff = (end - start) / (1000 * 60 * 60 * 24); // 計日數
-      const interest = principal * rate * (timeDiff / 365);
+      if (isNaN(principal) || isNaN(rate) || isNaN(start) || isNaN(end)) {
+        result.innerHTML = "請填齊所有資料先可以計。";
+        return;
+      }
+
+      const days = (end - start) / (1000 * 60 * 60 * 24);
+      if (days <= 0) {
+        result.innerHTML = "完結日期要遲過開始日期。";
+        return;
+      }
+
+      const interest = principal * rate * (days / 365);
       const total = principal + interest;
 
-      document.getElementById("result").innerHTML = 
-        `利息：約 $${interest.toFixed(2)}<br>本利合共：約 $${total.toFixed(2)}<br>存期：${timeDiff} 日`;
+      result.innerHTML = 
+        `利息：約 $${interest.toFixed(2)}<br>本利合共：約 $${total.toFixed(2)}<br>存期：${days} 日`;
     }
   </script>
 </body>
