@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <title>定期存款計息機</title>
+</head>
+<body>
+  <h2>定期存款計息計算器</h2>
+
+  <label>本金（$）：<input type="number" id="principal" value="12000"></label><br><br>
+  <label>年利率（%）：<input type="number" id="rate" step="0.01" value="2.88"></label><br><br>
+  <label>開始日期：<input type="date" id="startDate" value="2025-04-05"></label><br><br>
+  <label>完結日期：<input type="date" id="endDate" value="2025-07-07"></label><br><br>
+
+  <button onclick="calculateInterest()">計算利息</button>
+
+  <h3 id="result"></h3>
+
+  <script>
+    function calculateInterest() {
+      const principal = parseFloat(document.getElementById("principal").value);
+      const rate = parseFloat(document.getElementById("rate").value) / 100;
+      const start = new Date(document.getElementById("startDate").value);
+      const end = new Date(document.getElementById("endDate").value);
+
+      const timeDiff = (end - start) / (1000 * 60 * 60 * 24); // 計日數
+      const interest = principal * rate * (timeDiff / 365);
+      const total = principal + interest;
+
+      document.getElementById("result").innerHTML = 
+        `利息：約 $${interest.toFixed(2)}<br>本利合共：約 $${total.toFixed(2)}<br>存期：${timeDiff} 日`;
+    }
+  </script>
+</body>
+</html>
