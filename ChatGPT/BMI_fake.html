@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>整蠱版 BMI 計數機</title>
+  <style>
+    body{font-family:sans-serif;background:#fef5f5;padding:30px;text-align:center;}
+    .card{background:white;padding:20px;border-radius:10px;max-width:420px;margin:0 auto;box-shadow:0 4px 12px rgba(0,0,0,.1);}
+    label{display:block;margin-top:12px;font-size:.9rem;color:#555;}
+    input{width:100%;padding:8px 10px;margin-top:4px;border-radius:6px;border:1px solid #ccc;}
+    button{margin-top:18px;padding:10px 16px;border:0;border-radius:8px;background:#f87171;color:white;font-size:1rem;cursor:pointer;}
+    h1{margin-top:0;color:#b91c1c;}
+    .result{margin-top:20px;font-size:1.3rem;font-weight:bold;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>整蠱版 BMI 計數機 😂</h1>
+    <label>體重（kg）<input type="number" id="w" placeholder="例如 60"></label>
+    <label>身高（cm）<input type="number" id="h" placeholder="例如 170"></label>
+    <button onclick="calcBMI()">計算 BMI</button>
+    <div class="result" id="res">—</div>
+  </div>
+
+  <script>
+    function calcBMI(){
+      const w = parseFloat(document.getElementById('w').value);
+      const hcm = parseFloat(document.getElementById('h').value);
+      if(!w || !hcm){
+        document.getElementById('res').textContent='請輸入數值';
+        return;
+      }
+      const h = hcm/100;
+      let bmi = w/(h*h);
+      // 🫣 整蠱：加100
+      bmi = bmi + 100;
+      document.getElementById('res').textContent = `🤣 你嘅「BMI」係：${bmi.toFixed(1)}`;
+    }
+  </script>
+</body>
+</html>
