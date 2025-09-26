@@ -26,7 +26,7 @@
 <body>
   <main class="card" role="main" aria-labelledby="title">
     <h1 id="title">簡易 BMI 計數機</h1>
-    <p class="lead">輸入公制數值（kg / cm）。結果按照公式顯示：(BMI²) ÷ 8。</p>
+    <p class="lead"輸入公制數值（kg / cm）。</p>
 
     <label for="weight">體重（kg）</label>
     <input id="weight" type="number" inputmode="decimal" step="0.1" min="10" max="500" placeholder="例如 60" />
@@ -41,16 +41,16 @@
     </div>
 
     <div class="result" id="result" aria-live="polite">
-      <div class="muted">結果（會用 (BMI²) ÷ 8 的公式顯示）</div>
+      <div class="muted">結果：</div>
       <div style="margin-top:8px">
         <div class="muted">原始 BMI：</div>
         <div id="origBMI" class="big">—</div>
       </div>
       <div style="margin-top:8px">
-        <div class="muted">轉換結果 (BMI² ÷ 8)：</div>
+        <div class="muted">轉換結果：</div>
         <div id="transBMI" class="big">—</div>
       </div>
-      <div class="note">提示：此結果可能會不準確，只係根據指定公式計出嚟。</div>
+      <div class="note">提示：此結果100%會不準確。</div>
     </div>
   </main>
 
