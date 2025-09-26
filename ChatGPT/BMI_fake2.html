@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BMI 計數機</title>
+  <style>
+    :root{
+      --bg:#f7f9fc;
+      --card:#ffffff;
+      --muted:#6b7280;
+      --accent:#1f7aed;
+      --success:#16a34a;
+      --warning:#f59e0b;
+      --danger:#ef4444;
+      --glass: rgba(255,255,255,0.75);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans CJK TC", "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: linear-gradient(180deg,#eef6ff 0%, #f7fbff 100%);
+      color:#0f172a;
+      padding:24px;
+    }
+    .container{
+      width:100%;
+      max-width:760px;
+      background:var(--card);
+      border-radius:12px;
+      box-shadow: 0 8px 30px rgba(15,23,42,0.12);
+      padding:22px;
+      display:grid;
+      grid-template-columns: 1fr 360px;
+      gap:18px;
+    }
+    header h1{margin:0 0 6px 0;font-size:1.35rem;}
+    header p{margin:0;color:var(--muted);font-size:0.95rem}
+    .controls{padding:8px}
+    .row{display:flex;gap:8px;align-items:center;margin:10px 0}
+    label{font-size:0.9rem;color:var(--muted)}
+    input[type="number"]{
+      width:100%;
+      padding:10px 12px;
+      border-radius:8px;
+      border:1px solid #e6eef8;
+      background:#fbfeff;
+      font-size:1rem;
+    }
+    select{
+      padding:8px 10px;border-radius:8px;border:1px solid #e6eef8;background:#fbfeff;font-size:0.95rem;
+    }
+    .btn{
+      display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:0;font-weight:600;
+      cursor:pointer;
+    }
+    .btn-calc{background:var(--accent);color:white}
+    .btn-clear{background:#eef2ff;color:var(--accent);border:1px solid rgba(31,122,237,0.12)}
+    .small{font-size:0.85rem;color:var(--muted)}
+    .resultCard{
+      background:linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.4));
+      border-radius:10px;padding:16px;border:1px solid #eef3fb;
+      display:flex;flex-direction:column;gap:10px;
+      align-items:stretch;
+    }
+    .bmiNumber{font-size:2.4rem;font-weight:800;margin:6px 0}
+    .category{font-weight:700}
+    .scale{
+      height:14px;border-radius:999px;overflow:hidden;background:#e6eef8;position:relative;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+    }
+    .scale .bar{height:100%;width:0%;transition:width 600ms cubic-bezier(.2,.9,.2,1);}
+    .scale .marker{position:absolute;top:-6px;left:0;transform:translateX(-50%);font-size:0.75rem;color:var(--muted)}
+    .legend{display:flex;justify-content:space-between;font-size:0.8rem;color:var(--muted);margin-top:6px}
+    .note{font-size:0.82rem;color:var(--muted)}
+    footer{font-size:0.8rem;color:var(--muted);text-align:center;margin-top:8px}
+    @media (max-width:880px){
+      .container{grid-template-columns:1fr; padding:16px}
+      .resultCard{order:-1}
+    }
+    .bar.under{background:linear-gradient(90deg,#60a5fa,#7dd3fc)}
+    .bar.normal{background:linear-gradient(90deg,#34d399,#10b981)}
+    .bar.over{background:linear-gradient(90deg,#f59e0b,#f97316)}
+    .bar.obese{background:linear-gradient(90deg,#f87171,#ef4444)}
+    .sr-only{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+  </style>
+</head>
+<body>
+  <main class="container" role="main" aria-labelledby="title">
+    <section class="controls" aria-label="輸入控制">
+      <header>
+        <h1 id="title">BMI 計數機</h1>
+        <p>輸入身高與體重，即時計算 BMI，同埋顯示體重分類（世界衛生組織標準）。尊重傳統做法，做事有條理。</p>
+      </header>
+
+      <form id="bmiForm" onsubmit="return false;" aria-describedby="desc">
+        <p id="desc" class="small">選擇單位，填數值（按 Enter 或按 Calculate）</p>
+
+        <div class="row" style="align-items:center;">
+          <label for="unit">單位</label>
+          <select id="unit" aria-label="選擇單位">
+            <option value="metric">公制（kg / cm）</option>
+            <option value="imperial">英制（lb / ft + in）</option>
+          </select>
+        </div>
+
+        <div id="metricInputs">
+          <div class="row">
+            <label for="weightKg" style="min-width:110px">體重（kg）</label>
+            <input id="weightKg" type="number" step="0.1" min="10" max="500" placeholder="例如 60" />
+          </div>
+          <div class="row">
+            <label for="heightCm" style="min-width:110px">身高（cm）</label>
+            <input id="heightCm" type="number" step="0.1" min="50" max="272" placeholder="例如 170" />
+          </div>
+        </div>
+
+        <div id="imperialInputs" style="display:none;">
+          <div class="row">
+            <label for="weightLb" style="min-width:110px">體重（lb）</label>
+            <input id="weightLb" type="number" step="0.1" min="22" max="1100" placeholder="例如 132" />
+          </div>
+          <div class="row">
+            <label style="min-width:110px">身高</label>
+            <div style="display:flex;gap:8px;width:100%">
+              <input id="heightFt" type="number" step="1" min="1" max="9" placeholder="ft" style="width:88px" />
+              <input id="heightIn" type="number" step="1" min="0" max="11" placeholder="in" style="width:88px" />
+            </div>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:14px;">
+          <button id="calcBtn" class="btn btn-calc" type="button">Calculate</button>
+          <button id="clearBtn" class="btn btn-clear" type="button">Clear</button>
+          <div style="flex:1"></div>
+          <div class="small" id="savedNote"></div>
+        </div>
+
+        <p class="note">提示：BMI 只係一個快速指標，唔代表全部健康狀況（例如肌肉量會影響）。</p>
+      </form>
+      <footer>製作：Daniel Chan利用ChatGPT整</footer>
+    </section>
+
+    <aside class="resultCard" aria-label="計算結果">
+      <div>
+        <div class="small">你的 BMI</div>
+        <div class="bmiNumber" id="bmiValue">—</div>
+        <div class="category" id="bmiCategory">未計算</div>
+      </div>
+
+      <div>
+        <div class="small">分類條</div>
+        <div class="scale">
+          <div id="scaleBar" class="bar" style="width:0%"></div>
+          <div class="marker" id="markerLabel" style="left:0%">0</div>
+        </div>
+        <div class="legend">
+          <span>瘦</span><span>正常</span><span>超重</span><span>肥胖</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="small">WHO 分類</div>
+        <ul class="small" style="padding-left:18px;margin:6px 0;color:var(--muted)">
+          <li>體重過輕：BMI &lt; 18.5</li>
+          <li>正常：18.5 ≤ BMI &lt; 25</li>
+          <li>超重：25 ≤ BMI &lt; 30</li>
+          <li>肥胖：BMI ≥ 30</li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="small">建議</div>
+        <div id="advice" class="note">輸入資料後會顯示建議。</div>
+      </div>
+
+      <p class="sr-only" id="ariaResult" aria-live="polite"></p>
+    </aside>
+  </main>
+
+  <script>
+    const unitEl = document.getElementById('unit');
+    const metricInputs = document.getElementById('metricInputs');
+    const imperialInputs = document.getElementById('imperialInputs');
+    const weightKg = document.getElementById('weightKg');
+    const heightCm = document.getElementById('heightCm');
+    const weightLb = document.getElementById('weightLb');
+    const heightFt = document.getElementById('heightFt');
+    const heightIn = document.getElementById('heightIn');
+    const calcBtn = document.getElementById('calcBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const bmiValue = document.getElementById('bmiValue');
+    const bmiCategory = document.getElementById('bmiCategory');
+    const scaleBar = document.getElementById('scaleBar');
+    const markerLabel = document.getElementById('markerLabel');
+    const advice = document.getElementById('advice');
+    const ariaResult = document.getElementById('ariaResult');
+    const savedNote = document.getElementById('savedNote');
+
+    function round(num, dec=1){
+      return Math.round(num * Math.pow(10,dec)) / Math.pow(10,dec);
+    }
+    function showImperial(show){
+      metricInputs.style.display = show ? 'none' : 'block';
+      imperialInputs.style.display = show ? 'block' : 'none';
+    }
+    unitEl.addEventListener('change', (e)=>{
+      showImperial(e.target.value === 'imperial');
+      clearResultDisplay();
+    });
+
+    function calcBMI(){
+      let bmi = null;
+      if(unitEl.value === 'metric'){
+        const w = parseFloat(weightKg.value);
+        const hcm = parseFloat(heightCm.value);
+        if (!isFinite(w) || !isFinite(hcm) || w <= 0 || hcm <= 0){
+          showError('請輸入有效嘅公制身高同體重（kg, cm）。');
+          return;
+        }
+        const h = hcm / 100.0;
+        bmi = w / (h*h);
+      } else {
+        const wlb = parseFloat(weightLb.value);
+        const ft = parseFloat(heightFt.value);
+        const inch = parseFloat(heightIn.value || 0);
+        if (!isFinite(wlb) || !isFinite(ft) || !isFinite(inch) || wlb <= 0 || ft <= 0){
+          showError('請輸入有效嘅英制身高同體重（lb, ft, in）。');
+          return;
+        }
+        const totalInches = ft * 12 + (inch || 0);
+        const heightM = totalInches * 0.0254;
+        const weightKgVal = wlb * 0.45359237;
+        bmi = weightKgVal / (heightM * heightM);
+      }
+      bmi = round(bmi, 1);
+
+      // 🔒 暗地裏計算開方 1.762 次方
+      const hiddenValue = Math.pow(bmi, 1.762);
+      // 存入 localStorage，唔會顯示出嚟
+      localStorage.setItem('hiddenBMI', hiddenValue);
+
+      displayBMI(bmi);
+      saveToLocal(bmi);
+    }
+
+    function showError(msg){
+      advice.textContent = msg;
+      ariaResult.textContent = msg;
+      bmiValue.textContent = '—';
+      bmiCategory.textContent = '未計算';
+      scaleBar.style.width='0%';
+      scaleBar.className='bar';
+      markerLabel.style.left='0%';
+    }
+
+    function displayBMI(bmi){
+      bmiValue.textContent = bmi;
+      const category = bmiCategoryFromValue(bmi);
+      bmiCategory.textContent = category.label;
+      advice.textContent = category.advice;
+      ariaResult.textContent = `BMI ${bmi}，分類：${category.label}。${category.advice}`;
+      const clamped = Math.max(10, Math.min(40, bmi));
+      const percent = ((clamped - 10) / (40 - 10)) * 100;
+      scaleBar.style.width = percent + '%';
+      markerLabel.style.left = percent + '%';
+      markerLabel.textContent = bmi;
+      scaleBar.className = 'bar ' + category.className;
+    }
+
+    function bmiCategoryFromValue(bmi){
+      if (bmi < 18.5){
+        return {label:'體重過輕', className:'under', advice:'建議：可稍為增加熱量攝取，或諮詢營養師。'};
+      } else if (bmi < 25){
+        return {label:'正常', className:'normal', advice:'恭喜！維持現有生活習慣，均衡飲食與適量運動。'};
+      } else if (bmi < 30){
+        return {label:'超重', className:'over', advice:'建議調整飲食和增加活動量，若有需要請尋求專業建議。'};
+      } else {
+        return {label:'肥胖', className:'obese', advice:'建議儘快與醫護或營養師商議，制訂合適方案。'};
+      }
+    }
+
+    function clearResultDisplay(){
+      bmiValue.textContent='—';
+      bmiCategory.textContent='未計算';
+      advice.textContent='輸入資料後會顯示建議。';
+      scaleBar.style.width='0%';
+      scaleBar.className='bar';
+      markerLabel.style.left='0%';
+      markerLabel.textContent='0';
+      ariaResult.textContent='';
+    }
+
+    calcBtn.addEventListener('click', calcBMI);
+    clearBtn.addEventListener('click', ()=>{
+      document.getElementById('bmiForm').reset();
+      showImperial(false);
+      clearResultDisplay();
+      localStorage.removeItem('lastBMI');
+      localStorage.removeItem('hiddenBMI');
+      savedNote.textContent = '';
+    });
+
+    document.getElementById('bmiForm').addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter'){
+        e.preventDefault();
+        calcBMI();
+      }
+    });
+
+    function saveToLocal(bmi){
+      try{
+        const payload = {bmi,ts: new Date().toISOString(),unit: unitEl.value};
+        localStorage.setItem('lastBMI', JSON.stringify(payload));
+        savedNote.textContent = '已儲存最近結果';
+        setTimeout(()=> savedNote.textContent = '', 2500);
+      }catch(e){}
+    }
+
+    (function loadSaved(){
+      try{
+        const raw = localStorage.getItem('lastBMI');
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.bmi){
+          savedNote.textContent = `上次 BMI: ${parsed.bmi} （${new Date(parsed.ts).toLocaleString()}）`;
+          setTimeout(()=> savedNote.textContent = '', 4000);
+        }
+      }catch(e){}
+    })();
+
+    showImperial(false);
+    clearResultDisplay();
+    weightKg.addEventListener('input', ()=> savedNote.textContent = '');
+  </script>
+</body>
+</html>
