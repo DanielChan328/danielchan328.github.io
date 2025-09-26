@@ -3,40 +3,108 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>整蠱版 BMI 計數機</title>
+  <title>簡易 BMI 計數機</title>
   <style>
-    body{font-family:sans-serif;background:#fef5f5;padding:30px;text-align:center;}
-    .card{background:white;padding:20px;border-radius:10px;max-width:420px;margin:0 auto;box-shadow:0 4px 12px rgba(0,0,0,.1);}
-    label{display:block;margin-top:12px;font-size:.9rem;color:#555;}
-    input{width:100%;padding:8px 10px;margin-top:4px;border-radius:6px;border:1px solid #ccc;}
-    button{margin-top:18px;padding:10px 16px;border:0;border-radius:8px;background:#f87171;color:white;font-size:1rem;cursor:pointer;}
-    h1{margin-top:0;color:#b91c1c;}
-    .result{margin-top:20px;font-size:1.3rem;font-weight:bold;}
+    :root{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans CJK TC",Arial;}
+    body{margin:0;background:#f6fbff;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;color:#0b1724}
+    .card{background:white;border-radius:12px;padding:20px;max-width:420px;width:100%;box-shadow:0 8px 24px rgba(8,20,40,0.08)}
+    h1{margin:0 0 8px;font-size:1.25rem}
+    p.lead{margin:0 0 14px;color:#6b7280;font-size:0.95rem}
+    label{display:block;font-size:0.9rem;color:#374151;margin-top:10px}
+    input[type="number"]{width:100%;padding:10px;border-radius:8px;border:1px solid #e6eef8;margin-top:6px;font-size:1rem;background:#fbfeff}
+    .row{display:flex;gap:8px;margin-top:14px;align-items:center}
+    button{padding:10px 14px;border:0;border-radius:9px;font-weight:700;cursor:pointer}
+    .btn-calc{background:#1f7aed;color:white}
+    .btn-clear{background:#eef2ff;color:#1f7aed;border:1px solid rgba(31,122,237,0.12)}
+    .result{margin-top:14px;padding:12px;border-radius:8px;background:#f8fafc;border:1px solid #eef3fb}
+    .big{font-size:1.5rem;font-weight:800}
+    .muted{color:#6b7280;font-size:0.9rem}
+    .note{margin-top:8px;font-size:0.85rem;color:#9ca3af}
+    @media (max-width:480px){.card{padding:16px}}
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>整蠱版 BMI 計數機 😂</h1>
-    <label>體重（kg）<input type="number" id="w" placeholder="例如 60"></label>
-    <label>身高（cm）<input type="number" id="h" placeholder="例如 170"></label>
-    <button onclick="calcBMI()">計算 BMI</button>
-    <div class="result" id="res">—</div>
-  </div>
+  <main class="card" role="main" aria-labelledby="title">
+    <h1 id="title">簡易 BMI 計數機</h1>
+    <p class="lead">輸入公制數值（kg / cm）。結果按照公式顯示：(BMI²) ÷ 8。</p>
+
+    <label for="weight">體重（kg）</label>
+    <input id="weight" type="number" inputmode="decimal" step="0.1" min="10" max="500" placeholder="例如 60" />
+
+    <label for="height">身高（cm）</label>
+    <input id="height" type="number" inputmode="decimal" step="0.1" min="50" max="272" placeholder="例如 170" />
+
+    <div class="row" style="margin-top:12px">
+      <button id="calc" class="btn-calc btn">計算</button>
+      <button id="clear" class="btn-clear btn" type="button">清除</button>
+      <div style="flex:1"></div>
+    </div>
+
+    <div class="result" id="result" aria-live="polite">
+      <div class="muted">結果（會用 (BMI²) ÷ 8 的公式顯示）</div>
+      <div style="margin-top:8px">
+        <div class="muted">原始 BMI：</div>
+        <div id="origBMI" class="big">—</div>
+      </div>
+      <div style="margin-top:8px">
+        <div class="muted">轉換結果 (BMI² ÷ 8)：</div>
+        <div id="transBMI" class="big">—</div>
+      </div>
+      <div class="note">提示：此結果可能會不準確，只係根據指定公式計出嚟。</div>
+    </div>
+  </main>
 
   <script>
-    function calcBMI(){
-      const w = parseFloat(document.getElementById('w').value);
-      const hcm = parseFloat(document.getElementById('h').value);
-      if(!w || !hcm){
-        document.getElementById('res').textContent='請輸入數值';
+    const weightEl = document.getElementById('weight');
+    const heightEl = document.getElementById('height');
+    const calcBtn = document.getElementById('calc');
+    const clearBtn = document.getElementById('clear');
+    const origBMIEl = document.getElementById('origBMI');
+    const transBMIEl = document.getElementById('transBMI');
+
+    function roundTo(n, d=1){
+      const p = Math.pow(10, d);
+      return Math.round(n * p) / p;
+    }
+
+    function compute(){
+      const w = parseFloat(weightEl.value);
+      const hcm = parseFloat(heightEl.value);
+      if (!isFinite(w) || !isFinite(hcm) || w <= 0 || hcm <= 0){
+        origBMIEl.textContent = '請輸入有效數值';
+        transBMIEl.textContent = '—';
         return;
       }
-      const h = hcm/100;
-      let bmi = w/(h*h);
-      // 🫣 整蠱：加100
-      bmi = bmi + 100;
-      document.getElementById('res').textContent = `🤣 你嘅「BMI」係：${bmi.toFixed(1)}`;
+      const h = hcm / 100;
+      const bmi = w / (h*h);
+      const bmiRounded = roundTo(bmi, 1);
+
+      // 轉換公式： (BMI^2) / 8
+      const transformed = (bmi * bmi) / 8;
+      const transformedRounded = roundTo(transformed, 1);
+
+      origBMIEl.textContent = bmiRounded;
+      transBMIEl.textContent = transformedRounded;
     }
+
+    calcBtn.addEventListener('click', compute);
+    clearBtn.addEventListener('click', ()=>{
+      weightEl.value = '';
+      heightEl.value = '';
+      origBMIEl.textContent = '—';
+      transBMIEl.textContent = '—';
+      weightEl.focus();
+    });
+
+    // allow Enter to calculate
+    [weightEl, heightEl].forEach(el=>{
+      el.addEventListener('keydown', (e)=>{
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          compute();
+        }
+      });
+    });
   </script>
 </body>
 </html>
