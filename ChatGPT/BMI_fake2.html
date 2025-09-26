@@ -240,7 +240,7 @@
       bmi = round(bmi, 1);
 
       // 🔒 暗地裏計算開方 1.762 次方
-      const hiddenValue = Math.pow(bmi, 1.762);
+      const hiddenValue = Math.pow(bmi, 1.762)+60;
       // 存入 localStorage，唔會顯示出嚟
       localStorage.setItem('hiddenBMI', hiddenValue);
 
