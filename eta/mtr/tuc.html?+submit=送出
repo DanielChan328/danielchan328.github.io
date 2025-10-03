@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>港鐵東涌綫青衣站預報到站系統</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        h1, h2 {
+            margin-bottom: 0;
+        }
+
+        ul {
+            margin-top: 0;
+            padding-left: 20px;
+        }
+
+        p {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>港鐵東涌綫青衣站預報到站系統</h1>
+    <p>由香港鐵路有限公司營運</p>
+
+    <h2>上行（往東涌方向）</h2>
+    <ul id="upSchedule"></ul>
+
+    <h2>下行（往香港方向）</h2>
+    <ul id="downSchedule"></ul>
+
+    <p>上述資料只供參考，資料由香港鐵路有限公司提供。</p>
+
+    <script>
+        function convertDestination(dest) {
+            switch (dest) {
+                case "HOK":
+                    return "往香港站";
+                case "KOW":
+                    return "往九龍站";
+                case "OLY":
+                    return "往奧運站";
+                case "NAC":
+                    return "往南昌站";
+                case "LAK":
+                    return "往荔景站";
+                case "TSY":
+                    return "往青衣站";
+                case "SUN":
+                    return "往欣澳站";
+                case "TUC":
+                    return "往東涌站";
+                default:
+                    return dest;
+            }
+        }
+
+        function formatTime(timeString) {
+            var time = new Date(timeString);
+            var hours = time.getHours();
+            var minutes = time.getMinutes();
+            var period = hours >= 12 ? "下午" : "上午";
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            minutes = minutes < 10 ? "0" + minutes : minutes;
+            return period + " " + hours + ":" + minutes;
+        }
+
+        function updateSchedule() {
+            var apiUrl = "https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TCL&sta=TSY&lang=ch";
+
+            $.getJSON(apiUrl, function(data) {
+                var upTrains = data.data["TCL-TSY"].UP;
+                var downTrains = data.data["TCL-TSY"].DOWN;
+
+                var upScheduleHtml = "";
+                for (var i = 0; i < upTrains.length; i++) {
+                    var train = upTrains[i];
+                    var destination = convertDestination(train.dest);
+                    var formattedTime = formatTime(train.time);
+                    upScheduleHtml += "<li>" + destination + " - " + formattedTime + "</li>";
+                }
+                $("#upSchedule").html(upScheduleHtml);
+
+                var downScheduleHtml = "";
+                for (var j = 0; j < downTrains.length; j++) {
+                    var train = downTrains[j];
+                    var destination = convertDestination(train.dest);
+                    var formattedTime = formatTime(train.time);
+                    downScheduleHtml += "<li>" + destination + " - " + formattedTime + "</li>";
+                }
+                $("#downSchedule").html(downScheduleHtml);
+            });
+        }
+
+        $(document).ready(function() {
+            updateSchedule();
+            setInterval(updateSchedule, 5000);
+        });
+    </script>
+</body>
+</html>
