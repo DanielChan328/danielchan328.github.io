@@ -1,49 +1,100 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>港鐵東涌綫預報到站系統</title>
+<meta charset="utf-8">
+<title>港鐵東涌綫預報到站系統（測試版）</title>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<style>
+:root{
+--blue1:#e3f2fd;
+--blue2:#b3e5fc;
+--accent:#1565c0;
+--card:#ffffffee;
+--muted:#546e7a;
+}
+body{
+font-family:"PingFang HK","Microsoft JhengHei",Arial,sans-serif;
+margin:0;padding:36px;
+background:linear-gradient(135deg,var(--blue1),var(--blue2));
+color:#123;
+}
+.wrap{max-width:980px;margin:0 auto;}
+header{text-align:center;margin-bottom:18px;}
+h1{margin:0;color:var(--accent);font-size:26px;}
+.sub{color:var(--muted);margin-top:6px;font-size:14px;}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:18px 0 22px 0;flex-wrap:wrap;}
+form{background:var(--card);padding:12px 14px;border-radius:12px;box-shadow:0 6px 18px rgba(9,30,66,0.06);display:flex;gap:10px;align-items:center;min-width:320px;}
+select{padding:8px 10px;border-radius:8px;border:1px solid #cfe8ff;font-size:14px;background:white;}
+input[type="submit"]{padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:white;font-weight:600;cursor:pointer;}
+#scheduleSection{margin-top:20px;display:none;gap:18px;align-items:flex-start;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 8px 20px rgba(9,30,66,0.06);min-height:120px;}
+.card h3{margin:0 0 8px 0;color:var(--accent);font-size:16px;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+thead th{text-align:left;padding:8px 6px;background:linear-gradient(90deg,var(--accent),#0b63a6);color:white;font-weight:600;font-size:13px;}
+tbody td{padding:10px 6px;border-bottom:1px dashed #e6f0fb;color:#0d2330;}
+.small{font-size:12px;color:var(--muted);}
+#backBtn{padding:6px 10px;border-radius:8px;border:none;background:#90caf9;color:white;cursor:pointer;margin-bottom:12px;}
+@media(max-width:760px){.grid{grid-template-columns:1fr}form{width:100%;justify-content:space-between}}
+</style>
 </head>
 <body>
+<div class="wrap">
+<header>
 <h1>港鐵東涌綫預報到站系統</h1>
-<p>溫馨提示，這是<b>測試</b>用途，未能夠獲取到任何資訊。<br>詳情請參閱本網站的<a href="https://www.danielchan.idv.hk/disclaimer" target="_blank">免責聲明</a>。</p>
-<form action="tcl.html" method="get">
-<p>請選擇車站：</p>
-<select name="station">
-  <option value="TUC">東涌</option>
-  <option value="SUB">欣澳</option>
-  <option value="TSY">青衣</option>
-  <option value="LAK">荔景</option>
-  <option value="NAM">南昌</option>
-  <option value="OLY">奧運</option>
-  <option value="KOW">九龍</option>
-  <option value="HOK">香港</option>
-  
+<div class="sub">資料由<b>香港鐵路有限公司</b>提供</div>
+</header>
+<div class="topbar">
+<form id="stationForm">
+<label for="stationSelect" class="small" style="margin-right:6px">請選擇車站</label>
+<select id="stationSelect" name="station">
+<option value="">-- 請問你目前在哪一個車站？ --</option>
+<option value="TUC">東涌站</option>
+<option value="SUN">欣澳站</option>
+<option value="TSY">青衣站</option>
+<option value="LAK">荔景站</option>
+<option value="NAM">南昌站</option>
+<option value="OLY">奧運站</option>
+<option value="KOW">九龍站</option>
+<option value="HOK">香港站</option>
 </select>
-  <br><br>
-<input type="submit" name="sub">
+<input type="submit" value="查看下一班列車">
 </form>
-  
-  <!-- ChatGPT增加的內容，可隨時取消。 -->
+</div>
+<div id="scheduleSection">
+<button id="backBtn">← 返回上一頁</button>
+<h2 id="stationTitle">站別</h2>
+<div class="grid">
+<div class="card">
+<h3>上行（往東涌站方向）</h3>
+<table id="upTable">
+<thead><tr><th></th><th>列車終點站</th><th>月台</th><th>預計到達時間</th><th>剩餘時間</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="card">
+<h3>下行（往香港站方向）</h3>
+<table id="downTable">
+<thead><tr><th></th><th>列車終點站</th><th>月台</th><th>預計到達時間</th><th>剩餘時間</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+<p class="small" style="margin-top:12px">上述資料只供參考，資料由<b>香港鐵路有限公司</b>提供。</p>
+</div>
+</div>
 <script>
-  const params = new URLSearchParams(window.location.search);
-  const station = params.get('station');
-
-  const stationNames = {
-    "TUC": "東涌站",
-    "SUB": "欣澳站",
-    "TSY": "青衣站",
-    "LAK": "荔景站",
-    "NAM": "南昌站",
-    "OLY": "奧運站",
-    "KOW": "九龍站",
-    "HOK": "香港站"
-  };
-
-  let stationName = stationNames[station] || "未知車站";
-
-  document.body.innerHTML += `<h2>你揀咗：${stationName}</h2>`;
+var upTrains=[],downTrains=[],tickInterval,stationCode='';
+function pad(n){return n<10?'0'+n:n}
+function parseTime(s){var p=s.split(/[- :]/).map(Number);return new Date(p[0],p[1]-1,p[2],p[3],p[4],p[5])}
+function fmtHMS(d){return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
+function fmtTTNT(t){t=Number(t);if(!t||t<=0)return'即將到站';var h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60;return(h>0?h+'小時 ':'')+(m>0?m+'分鐘 ':'')+s+'秒'}
+function convertDest(d){var m={"HOK":"往香港站","KOW":"往九龍站","OLY":"往奧運站","NAM":"往南昌站","LAK":"往荔景站","TSY":"往青衣站","SUN":"往欣澳站","TUC":"往東涌站"};return m[d]||d}
+function renderTables(){var up='';for(var i=0;i<upTrains.length;i++){var t=upTrains[i];up+='<tr><td>'+(t.seq||i+1)+'</td><td>'+convertDest(t.dest)+'</td><td>'+(t.plat||'-')+'</td><td>'+fmtHMS(t.time)+'</td><td id="'+t.id+'">'+fmtTTNT(Math.max(0,(t.time.getTime()-new Date().getTime())/1000|0))+'</td></tr>'}$('#upTable tbody').html(up);var down='';for(var j=0;j<downTrains.length;j++){var d=downTrains[j];down+='<tr><td>'+(d.seq||j+1)+'</td><td>'+convertDest(d.dest)+'</td><td>'+(d.plat||'-')+'</td><td>'+fmtHMS(d.time)+'</td><td id="'+d.id+'">'+fmtTTNT(Math.max(0,(d.time.getTime()-new Date().getTime())/1000|0))+'</td></tr>'}$('#downTable tbody').html(down)}
+function updateTTNT(){for(var i=0;i<upTrains.length;i++){var t=upTrains[i];var remain=Math.max(0,(t.time.getTime()-new Date().getTime())/1000|0);$('#'+t.id).text(fmtTTNT(remain))}for(var j=0;j<downTrains.length;j++){var d=downTrains[j];var remain=Math.max(0,(d.time.getTime()-new Date().getTime())/1000|0);$('#'+d.id).text(fmtTTNT(remain))}}
+function fetchData(code){var url='https://api.allorigins.win/get?url='+encodeURIComponent('https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TCL&sta='+code+'&lang=ch');$.getJSON(url,function(res){var data=JSON.parse(res.contents).data['TCL-'+code]||{};var up=data.UP||[],down=data.DOWN||[];upTrains=up.map(function(t,i){return{id:'up-'+i,seq:t.seq,dest:t.dest,plat:t.plat,time:parseTime(t.time)}});downTrains=down.map(function(t,i){return{id:'down-'+i,seq:t.seq,dest:t.dest,plat:t.plat,time:parseTime(t.time)}});renderTables();clearInterval(tickInterval);tickInterval=setInterval(updateTTNT,1000);})}
+$('#stationForm').on('submit',function(e){e.preventDefault();var code=$('#stationSelect').val();if(!code){alert('哎呀！可能你忘記了選擇車站，你需要選擇你目前的車站，我們才能夠向你提供正確的預報。');return}stationCode=code;$('#stationTitle').text($('#stationSelect option:selected').text()+'站預報到站時間');$('#scheduleSection').show();fetchData(code)})
+$('#backBtn').on('click',function(){$('#scheduleSection').hide();upTrains=[];downTrains=[];clearInterval(tickInterval);$('#upTable tbody').html('');$('#downTable tbody').html('');})
 </script>
-  <!-- ChatGPT增加的內容，可隨時取消。 -->
-
 </body>
 </html>
