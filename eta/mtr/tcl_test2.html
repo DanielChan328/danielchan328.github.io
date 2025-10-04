@@ -1,38 +1,58 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-HK">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <title>港鐵東涌綫預報到站系統</title>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: "PingFang HK", "Microsoft JhengHei", sans-serif;
+      background: linear-gradient(135deg, #e0f7fa, #e1f5fe);
+      text-align: center;
+      padding: 50px;
     }
-    h1, h2 {
-      margin-bottom: 0;
+    h1 {
+      color: #01579b;
+      margin-bottom: 40px;
     }
-    ul {
-      margin-top: 0;
-      padding-left: 20px;
+    form {
+      display: inline-block;
+      background: #ffffffb0;
+      padding: 20px 40px;
+      border-radius: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-    p {
-      margin-bottom: 10px;
+    select, input[type="submit"] {
+      font-size: 16px;
+      padding: 8px 12px;
+      margin: 10px;
+      border-radius: 10px;
+      border: 1px solid #90caf9;
     }
-    #scheduleSection {
-      display: none;
+    input[type="submit"] {
+      background-color: #0288d1;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    input[type="submit"]:hover {
+      background-color: #0277bd;
+    }
+    #time {
+      margin-top: 30px;
+      font-size: 18px;
+      color: #004d40;
     }
   </style>
 </head>
 <body>
   <h1>港鐵東涌綫預報到站系統</h1>
-  <p>由香港鐵路有限公司營運</p>
-
-  <form id="stationForm">
+  
+  <form id="stationForm" action="tcl.html" method="get">
     <p>請選擇車站：</p>
-    <select id="stationSelect" name="station">
-      <option value="">-- 請選擇車站 --</option>
+    <select name="station" id="stationSelect">
       <option value="TUC">東涌</option>
-      <option value="SUN">欣澳</option>
+      <option value="SUB">欣澳</option>
       <option value="TSY">青衣</option>
       <option value="LAK">荔景</option>
       <option value="NAM">南昌</option>
@@ -40,90 +60,45 @@
       <option value="KOW">九龍</option>
       <option value="HOK">香港</option>
     </select>
-    <input type="submit" value="顯示預報">
+    <input type="submit" name="sub" value="送出">
   </form>
 
-  <div id="scheduleSection">
-    <h2 id="stationTitle"></h2>
-
-    <h3>上行（往東涌方向）</h3>
-    <ul id="upSchedule"></ul>
-
-    <h3>下行（往香港方向）</h3>
-    <ul id="downSchedule"></ul>
-
-    <p>上述資料只供參考，資料由香港鐵路有限公司提供。</p>
-  </div>
+  <div id="time"></div>
 
   <script>
-    function convertDestination(dest) {
-      switch (dest) {
-        case "HOK": return "往香港站";
-        case "KOW": return "往九龍站";
-        case "OLY": return "往奧運站";
-        case "NAM": return "往南昌站";
-        case "LAK": return "往荔景站";
-        case "TSY": return "往青衣站";
-        case "SUN": return "往欣澳站";
-        case "TUC": return "往東涌站";
-        default: return dest;
-      }
+    const urlParams = new URLSearchParams(window.location.search);
+    const station = urlParams.get('station');
+    const form = document.getElementById('stationForm');
+    const select = document.getElementById('stationSelect');
+
+    if (station) {
+      form.style.display = 'none';
+      const stationNames = {
+        "TUC": "東涌",
+        "SUB": "欣澳",
+        "TSY": "青衣",
+        "LAK": "荔景",
+        "NAM": "南昌",
+        "OLY": "奧運",
+        "KOW": "九龍",
+        "HOK": "香港"
+      };
+      const name = stationNames[station] || "未知車站";
+      document.body.innerHTML += `<h2>${name}站到站時間預報</h2>`;
     }
 
-    function formatTime(timeString) {
-      var time = new Date(timeString);
-      var hours = time.getHours();
-      var minutes = time.getMinutes();
-      var period = hours >= 12 ? "下午" : "上午";
-      hours = hours % 12;
-      hours = hours ? hours : 12;
-      minutes = minutes < 10 ? "0" + minutes : minutes;
-      return period + " " + hours + ":" + minutes;
-    }
-
-    function updateSchedule(stationCode) {
-      var apiUrl = "https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TCL&sta=" + stationCode + "&lang=ch";
-
-      $.getJSON(apiUrl, function(data) {
-        var stationKey = "TCL-" + stationCode;
-        var stationData = data.data[stationKey];
-        if (!stationData) return;
-
-        var upTrains = stationData.UP || [];
-        var downTrains = stationData.DOWN || [];
-
-        var upScheduleHtml = upTrains.map(train => 
-          `<li>${convertDestination(train.dest)} - ${formatTime(train.time)}</li>`
-        ).join("");
-        $("#upSchedule").html(upScheduleHtml);
-
-        var downScheduleHtml = downTrains.map(train => 
-          `<li>${convertDestination(train.dest)} - ${formatTime(train.time)}</li>`
-        ).join("");
-        $("#downSchedule").html(downScheduleHtml);
+    function updateTime() {
+      const now = new Date();
+      const timeString = now.toLocaleString('zh-HK', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
       });
+      document.getElementById('time').textContent = "現在時間：" + timeString;
     }
-
-    $(document).ready(function() {
-      var refreshTimer = null;
-
-      $("#stationForm").on("submit", function(e) {
-        e.preventDefault();
-        var stationCode = $("#stationSelect").val();
-        if (!stationCode) {
-          alert("請選擇一個車站！");
-          return;
-        }
-
-        var stationName = $("#stationSelect option:selected").text();
-        $("#stationTitle").text(stationName + "站預報到站時間");
-        $("#scheduleSection").show();
-
-        updateSchedule(stationCode);
-        clearInterval(refreshTimer);
-        refreshTimer = setInterval(() => updateSchedule(stationCode), 5000);
-      });
-    });
+    setInterval(updateTime, 1000);
+    updateTime();
   </script>
 </body>
 </html>
