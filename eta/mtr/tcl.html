@@ -20,6 +20,28 @@
 </select>
 <input type="submit" name="sub">
 </form>
+  
+  <!-- ChatGPT增加的內容，可隨時取消。 -->
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const station = params.get('station');
+
+  const stationNames = {
+    "TUC": "東涌站",
+    "SUB": "欣澳站",
+    "TSY": "青衣站",
+    "LAK": "荔景站",
+    "NAM": "南昌站",
+    "OLY": "奧運站",
+    "KOW": "九龍站",
+    "HOK": "香港站"
+  };
+
+  let stationName = stationNames[station] || "未知車站";
+
+  document.body.innerHTML += `<h2>你揀咗：${stationName}</h2>`;
+</script>
+  <!-- ChatGPT增加的內容，可隨時取消。 -->
 
 </body>
 </html>
