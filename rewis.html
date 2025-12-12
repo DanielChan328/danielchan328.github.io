@@ -3,104 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>滅鼠工作檢查及歷史記錄系統</title>
+    <title>離線滅鼠工作檢查及歷史記錄表</title>
     <!-- 載入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 載入 Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // Set log level for debugging
-        setLogLevel('Debug');
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-
-        let userId = null; // Current user ID
-        let isAuthReady = false; // Flag to indicate if auth state is settled
-
-        // Public collection path for collaborative data
-        const COLLECTION_PATH = `artifacts/${appId}/public/data/rodentChecklists`;
-        
-        // Expose global variables for the main script logic
-        window.db = db;
-        window.auth = auth;
-        window.COLLECTION_PATH = COLLECTION_PATH;
-        window.serverTimestamp = serverTimestamp;
-
-        // 處理認證狀態
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                userId = user.uid;
-            } else if (initialAuthToken) {
-                // 使用自訂 Token 登入
-                try {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                    userId = auth.currentUser.uid;
-                } catch (error) {
-                    console.error("Custom token sign-in failed:", error);
-                    // 如果自訂 Token 失敗，退而求其次使用匿名登入
-                    try {
-                        await signInAnonymously(auth);
-                        userId = auth.currentUser.uid;
-                    } catch (anonError) {
-                        console.error("Anonymous sign-in failed:", anonError);
-                        alertMessage("Firebase 認證失敗，請檢查配置。", 'error');
-                    }
-                }
-            } else {
-                // 沒有 Token，使用匿名登入
-                try {
-                    await signInAnonymously(auth);
-                    userId = auth.currentUser.uid;
-                } catch (anonError) {
-                    console.error("Anonymous sign-in failed:", anonError);
-                    alertMessage("Firebase 認證失敗，請檢查配置。", 'error');
-                }
-            }
-
-            window.userId = userId;
-            isAuthReady = true;
-            window.isAuthReady = isAuthReady;
-            
-            // 認證準備好後，初始化應用程式視圖
-            if (userId) {
-                document.getElementById('user-id-display').textContent = `用戶 ID: ${userId}`;
-                window.initApp(); // 呼叫主程式初始化函數
-            }
-        });
-
-        // 全域 Alert 函數
-        window.alertMessage = (message, type = 'info') => {
-            const container = document.getElementById('alert-container');
-            const color = type === 'error' ? 'bg-red-500' : 'bg-indigo-500';
-            const icon = type === 'error' ? '&#x2717;' : '&#x2139;';
-            container.innerHTML = `
-                <div class="${color} text-white p-3 rounded-lg shadow-md flex items-center mb-4 transition duration-300">
-                    <span class="mr-3 text-xl">${icon}</span>
-                    <span>${message}</span>
-                </div>
-            `;
-            setTimeout(() => {
-                container.innerHTML = '';
-            }, 5000);
-        };
-
-        window.firebaseExports = {
-            initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
-            getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp
-        };
-    </script>
-
     <style>
         /* 使用 Inter 字體 */
         :root {
@@ -130,9 +35,9 @@
         <!-- Header and Navigation -->
         <header class="p-4 sm:p-6 bg-indigo-700 rounded-t-xl text-white">
             <div class="flex flex-col sm:flex-row justify-between items-center">
-                <h1 class="text-2xl sm:text-3xl font-bold mb-2 sm:mb-0">滅鼠工作檢查系統</h1>
+                <h1 class="text-2xl sm:text-3xl font-bold mb-2 sm:mb-0">離線滅鼠檢查系統</h1>
                 <nav class="flex space-x-4">
-                    <button id="nav-new" class="nav-btn bg-indigo-500 hover:bg-indigo-400 py-2 px-4 rounded-lg font-semibold transition duration-150">
+                    <button id="nav-new" class="nav-btn bg-indigo-300 hover:bg-indigo-400 py-2 px-4 rounded-lg font-semibold transition duration-150">
                         新檢查表
                     </button>
                     <button id="nav-history" class="nav-btn bg-indigo-500 hover:bg-indigo-400 py-2 px-4 rounded-lg font-semibold transition duration-150">
@@ -140,7 +45,9 @@
                     </button>
                 </nav>
             </div>
-            <p id="user-id-display" class="text-xs mt-2 text-indigo-200 break-words">用戶 ID: 載入中...</p>
+            <p class="text-xs mt-2 text-indigo-200">
+                本版本使用瀏覽器儲存 (localStorage)，所有記錄只保存在您當前的設備上。
+            </p>
         </header>
 
         <!-- Alert Message Container -->
@@ -151,14 +58,8 @@
 
     </div>
 
-    <!-- JavaScript 應用程式邏輯 -->
-    <script type="module">
-        // 確保 Firebase 匯出已載入
-        if (typeof window.firebaseExports === 'undefined') {
-            console.error("Firebase dependencies not loaded.");
-            // 在這裡可以選擇顯示一個錯誤訊息給用戶
-        }
-
+    <!-- JavaScript 應用程式邏輯 (使用 localStorage 進行離線儲存) -->
+    <script>
         // 檢查項目清單 (根據 PDF 內容)
         const checklistData = [
             "(1) 已巡查所有花槽和路面,視察有否出現鼠患。",
@@ -184,6 +85,52 @@
         const mainContent = document.getElementById('main-content');
         const navNewBtn = document.getElementById('nav-new');
         const navHistoryBtn = document.getElementById('nav-history');
+        const LOCAL_STORAGE_KEY = 'rodentChecklistRecords'; // Local Storage Key
+
+        // --- Utility Functions ---
+        
+        /**
+         * 顯示提醒訊息
+         */
+        function alertMessage(message, type = 'info') {
+            const container = document.getElementById('alert-container');
+            const color = type === 'error' ? 'bg-red-500' : (type === 'success' ? 'bg-green-500' : 'bg-indigo-500');
+            const icon = type === 'error' ? '&#x2717;' : (type === 'success' ? '&#x2714;' : '&#x2139;');
+            container.innerHTML = `
+                <div class="${color} text-white p-3 rounded-lg shadow-md flex items-center mb-4 transition duration-300">
+                    <span class="mr-3 text-xl">${icon}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        /**
+         * 取得儲存在 Local Storage 的記錄
+         */
+        function getRecords() {
+            try {
+                const records = localStorage.getItem(LOCAL_STORAGE_KEY);
+                return records ? JSON.parse(records) : [];
+            } catch (e) {
+                console.error("讀取 Local Storage 錯誤:", e);
+                return [];
+            }
+        }
+
+        /**
+         * 儲存記錄到 Local Storage
+         */
+        function saveRecords(records) {
+            try {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(records));
+            } catch (e) {
+                console.error("寫入 Local Storage 錯誤:", e);
+                alertMessage("記錄儲存失敗，可能您的瀏覽器儲存空間已滿。", 'error');
+            }
+        }
 
         // --- View Rendering Functions ---
 
@@ -225,7 +172,7 @@
                         
                         <!-- 提交按鈕 -->
                         <button type="submit" class="w-full py-3 px-4 bg-green-600 text-white font-bold text-lg rounded-lg shadow-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.01]">
-                            提交檢查結果至資料庫
+                            提交檢查結果並儲存 (離線)
                         </button>
                     </form>
                 </div>
@@ -257,13 +204,13 @@
                             <div class="flex space-x-4 flex-shrink-0">
                                 <!-- 滿意 (√) -->
                                 <label class="inline-flex items-center cursor-pointer">
-                                    <input type="radio" name="${itemId}-status" value="滿意" class="form-radio h-5 w-5 text-green-500 border-green-400" onclick="window.toggleCorrectionField('${itemId}', false)" required>
+                                    <input type="radio" name="${itemId}-status" value="滿意" class="form-radio h-5 w-5 text-green-500 border-green-400" onclick="toggleCorrectionField('${itemId}', false)" required>
                                     <span class="ml-1 text-green-600 font-bold text-sm">滿意 (√)</span>
                                 </label>
                                 
                                 <!-- 欠妥 (×) -->
                                 <label class="inline-flex items-center cursor-pointer">
-                                    <input type="radio" name="${itemId}-status" value="欠妥" class="form-radio h-5 w-5 text-red-500 border-red-400" onclick="window.toggleCorrectionField('${itemId}', true)" required>
+                                    <input type="radio" name="${itemId}-status" value="欠妥" class="form-radio h-5 w-5 text-red-500 border-red-400" onclick="toggleCorrectionField('${itemId}', true)" required>
                                     <span class="ml-1 text-red-600 font-bold text-sm">欠妥 (×)</span>
                                 </label>
                             </div>
@@ -283,7 +230,7 @@
         /**
          * 切換備註欄位的顯示狀態和必填屬性
          */
-        window.toggleCorrectionField = (itemId, isUnsatisfactory) => {
+        function toggleCorrectionField(itemId, isUnsatisfactory) {
             const correctionField = document.getElementById(`${itemId}-correction-field`);
             const notesTextarea = document.getElementById(`${itemId}-notes`);
             const itemWrapper = document.getElementById(`${itemId}-wrapper`);
@@ -296,23 +243,18 @@
             } else {
                 correctionField.classList.add('hidden');
                 notesTextarea.removeAttribute('required');
-                notesTextarea.value = '';
+                notesTextarea.value = ''; // 清空欠妥備註
                 itemWrapper.classList.remove('border-red-500', 'bg-red-50');
                 itemWrapper.classList.add('border-gray-200', 'bg-white');
             }
-        };
+        }
 
         /**
-         * 處理表單提交並寫入 Firestore
+         * 處理表單提交並寫入 Local Storage
          */
-        async function handleFormSubmit(event) {
+        function handleFormSubmit(event) {
             event.preventDefault();
             
-            if (!window.isAuthReady || !window.userId) {
-                window.alertMessage("認證尚未完成，請稍候再試。", 'error');
-                return;
-            }
-
             const form = event.target;
             const formData = new FormData(form);
             const checklistItems = [];
@@ -334,43 +276,23 @@
             });
 
             const submissionData = {
+                id: Date.now(), // 使用時間戳作為唯一 ID
                 checkDate: formData.get('check_date'),
                 inspectorName: formData.get('inspector-name'),
                 inspectorSignature: formData.get('inspector-signature'),
-                submitterId: window.userId,
-                submissionTime: window.serverTimestamp(),
+                submissionTime: new Date().toLocaleString('zh-TW'),
                 checklistItems: checklistItems
             };
 
-            // 2. 禁用按鈕並顯示載入狀態
-            const submitButton = form.querySelector('button[type="submit"]');
-            submitButton.disabled = true;
-            submitButton.textContent = '提交中... 請稍候';
-            submitButton.classList.remove('bg-green-600');
-            submitButton.classList.add('bg-gray-400');
+            // 2. 儲存到 Local Storage
+            const records = getRecords();
+            records.unshift(submissionData); // 將最新記錄放在最前面
+            saveRecords(records);
+            
+            alertMessage("檢查表提交成功並已儲存在您的瀏覽器中！", 'success');
 
-            // 3. 寫入 Firestore
-            try {
-                const docRef = await window.firebaseExports.addDoc(
-                    window.firebaseExports.collection(window.db, window.COLLECTION_PATH),
-                    submissionData
-                );
-                
-                window.alertMessage(`檢查表提交成功！文件 ID: ${docRef.id}`, 'info');
-                
-                // 成功後切換到歷史記錄視圖
-                switchView('history');
-
-            } catch (e) {
-                console.error("寫入 Firestore 錯誤: ", e);
-                window.alertMessage("提交失敗，請檢查網路連線或權限。", 'error');
-            } finally {
-                // 4. 恢復按鈕狀態
-                submitButton.disabled = false;
-                submitButton.textContent = '提交檢查結果至資料庫';
-                submitButton.classList.remove('bg-gray-400');
-                submitButton.classList.add('bg-green-600');
-            }
+            // 成功後切換到歷史記錄視圖
+            switchView('history');
         }
 
         /**
@@ -380,84 +302,37 @@
             mainContent.innerHTML = `
                 <div class="max-w-6xl mx-auto">
                     <header class="text-center mb-6">
-                        <h2 class="text-3xl font-bold text-gray-800">滅鼠檢查歷史記錄</h2>
-                        <p class="text-gray-500 mt-1">實時更新所有用戶提交的記錄</p>
+                        <h2 class="text-3xl font-bold text-gray-800">本地歷史記錄</h2>
+                        <p class="text-gray-500 mt-1">所有記錄儲存在您的瀏覽器中</p>
                     </header>
-                    <div class="text-xs text-center text-indigo-500 mb-4">
-                        <p>注意: 為了性能和避免索引問題，此列表未排序。最新的記錄可能不會出現在最上方。</p>
-                    </div>
                     <div id="history-list" class="space-y-4">
-                        <!-- 載入中的提示 -->
-                        <div class="text-center py-10 text-gray-500" id="loading-spinner">
-                            <svg class="animate-spin h-8 w-8 mx-auto text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <p class="mt-3">正在從 Firestore 載入歷史記錄...</p>
-                        </div>
+                        <!-- 記錄將由 JavaScript 填充 -->
+                    </div>
+                    <div class="text-center mt-6">
+                        <button id="clear-history-btn" class="py-2 px-4 bg-red-500 text-white font-semibold rounded-lg shadow-md hover:bg-red-600 transition duration-150">
+                            清除所有歷史記錄
+                        </button>
                     </div>
                 </div>
             `;
             
-            // 開始監聽 Firestore 資料
-            setupHistoryListener();
+            const historyList = document.getElementById('history-list');
+            const records = getRecords();
+
+            if (records.length === 0) {
+                historyList.innerHTML = `<p class="text-center py-10 text-gray-500">目前沒有儲存的檢查記錄。</p>`;
+            } else {
+                const htmlContent = records.map(record => createHistoryCard(record)).join('');
+                historyList.innerHTML = htmlContent;
+            }
+
+            document.getElementById('clear-history-btn').addEventListener('click', clearHistory);
         }
         
-        /**
-         * 設置 Firestore 歷史記錄實時監聽
-         */
-        function setupHistoryListener() {
-            if (!window.isAuthReady || !window.userId) {
-                // 在認證未完成前不執行查詢
-                return;
-            }
-            
-            const historyList = document.getElementById('history-list');
-            const loadingSpinner = document.getElementById('loading-spinner');
-            
-            // 由於避免使用 orderBy，我們只使用基礎查詢
-            const q = window.firebaseExports.query(
-                window.firebaseExports.collection(window.db, window.COLLECTION_PATH)
-            );
-
-            // 實時監聽
-            window.firebaseExports.onSnapshot(q, (querySnapshot) => {
-                let htmlContent = '';
-                const records = [];
-
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    records.push({ id: doc.id, ...data });
-                });
-                
-                // 雖然 Firestore 查詢未排序，我們可以在前端按提交時間(如果存在)或 ID 排序
-                records.sort((a, b) => {
-                    const timeA = a.submissionTime ? a.submissionTime.toMillis() : 0;
-                    const timeB = b.submissionTime ? b.submissionTime.toMillis() : 0;
-                    return timeB - timeA; // 最新提交在前面
-                });
-
-                if (records.length === 0) {
-                    htmlContent = `<p class="text-center py-10 text-gray-500">目前沒有檢查記錄。</p>`;
-                } else {
-                    htmlContent = records.map(record => createHistoryCard(record)).join('');
-                }
-
-                historyList.innerHTML = htmlContent;
-                if (loadingSpinner) loadingSpinner.remove();
-
-            }, (error) => {
-                console.error("Firestore 監聽錯誤: ", error);
-                historyList.innerHTML = `<p class="text-center py-10 text-red-500">載入記錄失敗: ${error.message}</p>`;
-                if (loadingSpinner) loadingSpinner.remove();
-            });
-        }
-
         /**
          * 創建歷史記錄卡片 HTML
          */
         function createHistoryCard(record) {
-            const submitTime = record.submissionTime ? new Date(record.submissionTime.toMillis()).toLocaleString('zh-TW') : 'N/A';
             const unsatisfactoryCount = record.checklistItems.filter(item => item.status === '欠妥').length;
 
             let detailsHtml = record.checklistItems.map(item => {
@@ -479,13 +354,13 @@
                 <div class="history-card p-4 border border-gray-200 rounded-lg shadow-md bg-white hover:shadow-lg transition duration-200">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-2 mb-2">
                         <h4 class="text-lg font-bold text-indigo-700">檢查日期: ${record.checkDate}</h4>
-                        <span class="text-sm text-gray-500 mt-1 sm:mt-0">提交時間: ${submitTime}</span>
+                        <span class="text-sm text-gray-500 mt-1 sm:mt-0">提交時間: ${record.submissionTime}</span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4 text-sm mb-3">
                         <p><strong>檢查人員:</strong> ${record.inspectorName}</p>
                         <p><strong>電子簽名:</strong> ${record.inspectorSignature}</p>
-                        <p><strong>提交者 ID:</strong> <span class="text-xs break-all text-indigo-500">${record.submitterId}</span></p>
+                        <p><strong>記錄 ID:</strong> <span class="text-xs break-all text-gray-500">${record.id}</span></p>
                         <p><strong>欠妥項目數量:</strong> <span class="font-bold ${unsatisfactoryCount > 0 ? 'text-red-600' : 'text-green-600'}">${unsatisfactoryCount} / ${record.checklistItems.length}</span></p>
                     </div>
 
@@ -501,6 +376,20 @@
             `;
         }
 
+        /**
+         * 清除所有歷史記錄
+         */
+        function clearHistory() {
+            // 使用一個簡單的自定義彈窗/確認機制
+            const isConfirmed = window.confirm("您確定要清除所有儲存在此瀏覽器的歷史記錄嗎？此操作不可撤銷。");
+            
+            if (isConfirmed) {
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
+                alertMessage("所有歷史記錄已清除！", 'success');
+                renderHistoryView(); // 重新渲染視圖
+            }
+        }
+
         // --- Application Control ---
         
         /**
@@ -510,10 +399,10 @@
             currentView = viewName;
             
             // 更新導航按鈕樣式
-            navNewBtn.classList.remove('bg-indigo-300');
-            navHistoryBtn.classList.remove('bg-indigo-300');
-            navNewBtn.classList.add('bg-indigo-500');
-            navHistoryBtn.classList.add('bg-indigo-500');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-300');
+                btn.classList.add('bg-indigo-500');
+            });
 
             if (viewName === 'new') {
                 navNewBtn.classList.remove('bg-indigo-500');
@@ -530,19 +419,10 @@
         navNewBtn.addEventListener('click', () => switchView('new'));
         navHistoryBtn.addEventListener('click', () => switchView('history'));
 
-        /**
-         * 應用程式初始化 (由 Firebase 認證完成後呼叫)
-         */
-        window.initApp = function() {
-            // 預設載入新檢查表視圖
-            switchView(currentView);
+        // 應用程式初始化
+        window.onload = function() {
+            switchView('new'); // 預設載入新檢查表視圖
         };
-        
-        // 如果認證已經準備好 (在某些環境下可能會很快)，則立即初始化
-        if (window.isAuthReady) {
-             window.initApp();
-        }
-        
     </script>
 </body>
 </html>
