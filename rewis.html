@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>滅鼠工作檢查及歷史記錄系統</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Set log level for debugging
+        setLogLevel('Debug');
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let userId = null; // Current user ID
+        let isAuthReady = false; // Flag to indicate if auth state is settled
+
+        // Public collection path for collaborative data
+        const COLLECTION_PATH = `artifacts/${appId}/public/data/rodentChecklists`;
+        
+        // Expose global variables for the main script logic
+        window.db = db;
+        window.auth = auth;
+        window.COLLECTION_PATH = COLLECTION_PATH;
+        window.serverTimestamp = serverTimestamp;
+
+        // 處理認證狀態
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+            } else if (initialAuthToken) {
+                // 使用自訂 Token 登入
+                try {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                    userId = auth.currentUser.uid;
+                } catch (error) {
+                    console.error("Custom token sign-in failed:", error);
+                    // 如果自訂 Token 失敗，退而求其次使用匿名登入
+                    try {
+                        await signInAnonymously(auth);
+                        userId = auth.currentUser.uid;
+                    } catch (anonError) {
+                        console.error("Anonymous sign-in failed:", anonError);
+                        alertMessage("Firebase 認證失敗，請檢查配置。", 'error');
+                    }
+                }
+            } else {
+                // 沒有 Token，使用匿名登入
+                try {
+                    await signInAnonymously(auth);
+                    userId = auth.currentUser.uid;
+                } catch (anonError) {
+                    console.error("Anonymous sign-in failed:", anonError);
+                    alertMessage("Firebase 認證失敗，請檢查配置。", 'error');
+                }
+            }
+
+            window.userId = userId;
+            isAuthReady = true;
+            window.isAuthReady = isAuthReady;
+            
+            // 認證準備好後，初始化應用程式視圖
+            if (userId) {
+                document.getElementById('user-id-display').textContent = `用戶 ID: ${userId}`;
+                window.initApp(); // 呼叫主程式初始化函數
+            }
+        });
+
+        // 全域 Alert 函數
+        window.alertMessage = (message, type = 'info') => {
+            const container = document.getElementById('alert-container');
+            const color = type === 'error' ? 'bg-red-500' : 'bg-indigo-500';
+            const icon = type === 'error' ? '&#x2717;' : '&#x2139;';
+            container.innerHTML = `
+                <div class="${color} text-white p-3 rounded-lg shadow-md flex items-center mb-4 transition duration-300">
+                    <span class="mr-3 text-xl">${icon}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        };
+
+        window.firebaseExports = {
+            initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+            getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp
+        };
+    </script>
+
+    <style>
+        /* 使用 Inter 字體 */
+        :root {
+            font-family: 'Inter', sans-serif;
+        }
+        /* 自定義樣式來處理 radio button 的顏色 */
+        .form-radio.text-green-500:checked {
+            background-color: #10B981; /* Tailwind green-500 */
+        }
+        .form-radio.text-red-500:checked {
+            background-color: #EF4444; /* Tailwind red-500 */
+        }
+        /* 隱藏原生滾動條 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 sm:p-8">
+
+    <div id="app-container" class="max-w-6xl mx-auto bg-white shadow-2xl rounded-xl">
+
+        <!-- Header and Navigation -->
+        <header class="p-4 sm:p-6 bg-indigo-700 rounded-t-xl text-white">
+            <div class="flex flex-col sm:flex-row justify-between items-center">
+                <h1 class="text-2xl sm:text-3xl font-bold mb-2 sm:mb-0">滅鼠工作檢查系統</h1>
+                <nav class="flex space-x-4">
+                    <button id="nav-new" class="nav-btn bg-indigo-500 hover:bg-indigo-400 py-2 px-4 rounded-lg font-semibold transition duration-150">
+                        新檢查表
+                    </button>
+                    <button id="nav-history" class="nav-btn bg-indigo-500 hover:bg-indigo-400 py-2 px-4 rounded-lg font-semibold transition duration-150">
+                        歷史記錄
+                    </button>
+                </nav>
+            </div>
+            <p id="user-id-display" class="text-xs mt-2 text-indigo-200 break-words">用戶 ID: 載入中...</p>
+        </header>
+
+        <!-- Alert Message Container -->
+        <div id="alert-container" class="px-6 pt-4"></div>
+
+        <!-- Main Content View -->
+        <main id="main-content" class="p-4 sm:p-6"></main>
+
+    </div>
+
+    <!-- JavaScript 應用程式邏輯 -->
+    <script type="module">
+        // 確保 Firebase 匯出已載入
+        if (typeof window.firebaseExports === 'undefined') {
+            console.error("Firebase dependencies not loaded.");
+            // 在這裡可以選擇顯示一個錯誤訊息給用戶
+        }
+
+        // 檢查項目清單 (根據 PDF 內容)
+        const checklistData = [
+            "(1) 已巡查所有花槽和路面,視察有否出現鼠患。",
+            "(2) 已修剪植物,以便及早發現鼠患。",
+            "(3) 已清理堆積的物品。",
+            "(4) 每天至少清倒住客的垃圾一次。",
+            "(5) 已把垃圾袋綁好,然後放在有蓋的垃圾收集桶內。",
+            "(6) 已把用過的垃圾桶清洗乾淨。",
+            "(7) 垃圾房已妥善維修保養和潔淨。",
+            "(8) 已清理在公用地方的垃圾。",
+            "(9) 貯物室/機房已妥善潔淨,沒有物品堆積。",
+            "(10) 排水管口已裝設間隙少於6毫米的鐵格柵或塞進有棘的鐵絲網球。",
+            "(11) 破損的鐵格柵均已更換。",
+            "(12) 裝設水管、電線或分體式冷氣機後,在牆壁、地板或天花留下的罅隙,均已用水泥或鐵片填封。",
+            "(13) 損毀的行人路和牆壁,均已用水泥修補。",
+            "(14) 門腳與地面之間的空隙少於6毫米。門的底部(包括門框)已裝上至少有30厘米高的金屬踢板。",
+            "(15) 通風/排氣口及百葉窗已安裝鐵絲網,其網眼不超過6毫米。",
+            "(16) 外牆上的喉管已安裝防鼠擋。",
+            "(17) 已在每個樓層放置有蓋的垃圾收集桶,桶蓋大小適合,用以收集住客的垃圾。"
+        ];
+
+        let currentView = 'new'; // 應用程式狀態: 'new' 或 'history'
+        const mainContent = document.getElementById('main-content');
+        const navNewBtn = document.getElementById('nav-new');
+        const navHistoryBtn = document.getElementById('nav-history');
+
+        // --- View Rendering Functions ---
+
+        /**
+         * 渲染新檢查表 (New Checklist) 視圖
+         */
+        function renderNewChecklistView() {
+            mainContent.innerHTML = `
+                <div class="max-w-3xl mx-auto">
+                    <header class="text-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">填寫滅鼠檢查表</h2>
+                        <p class="text-gray-500 mt-1">(物業管理公司及政府部門)</p>
+                    </header>
+                    <form id="checklist-form" class="space-y-6">
+
+                        <!-- 檢查日期與人員 -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-indigo-50 rounded-lg shadow-inner">
+                            <div>
+                                <label for="check-date" class="block text-sm font-semibold text-gray-700 mb-1">檢查日期:</label>
+                                <input type="date" id="check-date" name="check_date" required class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label for="inspector-name" class="block text-sm font-semibold text-gray-700 mb-1">檢查人員 (姓名):</label>
+                                <input type="text" id="inspector-name" name="inspector_name" required class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="請輸入檢查人員姓名">
+                            </div>
+                        </div>
+
+                        <h3 class="text-xl font-bold text-gray-800 border-b pb-2 mt-6">檢查項目 (共 ${checklistData.length} 項)</h3>
+                        
+                        <div id="checklist-items" class="space-y-4">
+                            <!-- 檢查項目將由 JavaScript 填充 -->
+                        </div>
+
+                        <!-- 簽署/確認欄位 -->
+                        <div class="p-4 bg-gray-50 rounded-lg shadow-inner">
+                            <label for="inspector-signature" class="block text-sm font-semibold text-gray-700 mb-1">電子確認簽署:</label>
+                            <input type="text" id="inspector-signature" name="inspector_signature" required class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="請輸入您的姓名以確認簽署">
+                        </div>
+                        
+                        <!-- 提交按鈕 -->
+                        <button type="submit" class="w-full py-3 px-4 bg-green-600 text-white font-bold text-lg rounded-lg shadow-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.01]">
+                            提交檢查結果至資料庫
+                        </button>
+                    </form>
+                </div>
+            `;
+
+            populateChecklistForm();
+            document.getElementById('checklist-form').addEventListener('submit', handleFormSubmit);
+            document.getElementById('check-date').valueAsDate = new Date();
+        }
+
+        /**
+         * 填充表單中的檢查項目
+         */
+        function populateChecklistForm() {
+            const checklistElement = document.getElementById('checklist-items');
+            checklistElement.innerHTML = '';
+            
+            checklistData.forEach((itemText, index) => {
+                const itemId = `item-${index + 1}`;
+                const itemHtml = `
+                    <div class="p-3 border border-gray-200 rounded-lg bg-white transition duration-200" id="${itemId}-wrapper">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between">
+                            <!-- 檢查項目描述 -->
+                            <div class="flex-1 text-gray-700 text-sm font-medium mb-2 sm:mb-0 pr-4">
+                                ${itemText}
+                            </div>
+                            
+                            <!-- 滿意/欠妥 選項 -->
+                            <div class="flex space-x-4 flex-shrink-0">
+                                <!-- 滿意 (√) -->
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="${itemId}-status" value="滿意" class="form-radio h-5 w-5 text-green-500 border-green-400" onclick="window.toggleCorrectionField('${itemId}', false)" required>
+                                    <span class="ml-1 text-green-600 font-bold text-sm">滿意 (√)</span>
+                                </label>
+                                
+                                <!-- 欠妥 (×) -->
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="${itemId}-status" value="欠妥" class="form-radio h-5 w-5 text-red-500 border-red-400" onclick="window.toggleCorrectionField('${itemId}', true)" required>
+                                    <span class="ml-1 text-red-600 font-bold text-sm">欠妥 (×)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 跟進及糾正備註 (預設隱藏) -->
+                        <div id="${itemId}-correction-field" class="mt-3 pt-3 border-t border-red-100 hidden">
+                            <label for="${itemId}-notes" class="block text-xs font-semibold text-red-700 mb-1">跟進及糾正備註 (必填):</label>
+                            <textarea id="${itemId}-notes" name="${itemId}-notes" rows="2" class="w-full p-2 text-sm border border-red-300 rounded-lg focus:ring-red-500 focus:border-red-500 transition duration-150" placeholder="請說明問題、糾正措施和加簽確認。"></textarea>
+                        </div>
+                    </div>
+                `;
+                checklistElement.insertAdjacentHTML('beforeend', itemHtml);
+            });
+        }
+
+        /**
+         * 切換備註欄位的顯示狀態和必填屬性
+         */
+        window.toggleCorrectionField = (itemId, isUnsatisfactory) => {
+            const correctionField = document.getElementById(`${itemId}-correction-field`);
+            const notesTextarea = document.getElementById(`${itemId}-notes`);
+            const itemWrapper = document.getElementById(`${itemId}-wrapper`);
+
+            if (isUnsatisfactory) {
+                correctionField.classList.remove('hidden');
+                notesTextarea.setAttribute('required', 'required');
+                itemWrapper.classList.add('border-red-500', 'bg-red-50');
+                itemWrapper.classList.remove('border-gray-200', 'bg-white');
+            } else {
+                correctionField.classList.add('hidden');
+                notesTextarea.removeAttribute('required');
+                notesTextarea.value = '';
+                itemWrapper.classList.remove('border-red-500', 'bg-red-50');
+                itemWrapper.classList.add('border-gray-200', 'bg-white');
+            }
+        };
+
+        /**
+         * 處理表單提交並寫入 Firestore
+         */
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            
+            if (!window.isAuthReady || !window.userId) {
+                window.alertMessage("認證尚未完成，請稍候再試。", 'error');
+                return;
+            }
+
+            const form = event.target;
+            const formData = new FormData(form);
+            const checklistItems = [];
+
+            // 1. 收集檢查結果
+            checklistData.forEach((itemText, index) => {
+                const itemId = `item-${index + 1}`;
+                const status = formData.get(`${itemId}-status`);
+                const notes = formData.get(`${itemId}-notes`) || '';
+
+                if (status) {
+                    checklistItems.push({
+                        id: index + 1,
+                        description: itemText,
+                        status: status, // "滿意" or "欠妥"
+                        correction_notes: notes
+                    });
+                }
+            });
+
+            const submissionData = {
+                checkDate: formData.get('check_date'),
+                inspectorName: formData.get('inspector-name'),
+                inspectorSignature: formData.get('inspector-signature'),
+                submitterId: window.userId,
+                submissionTime: window.serverTimestamp(),
+                checklistItems: checklistItems
+            };
+
+            // 2. 禁用按鈕並顯示載入狀態
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = '提交中... 請稍候';
+            submitButton.classList.remove('bg-green-600');
+            submitButton.classList.add('bg-gray-400');
+
+            // 3. 寫入 Firestore
+            try {
+                const docRef = await window.firebaseExports.addDoc(
+                    window.firebaseExports.collection(window.db, window.COLLECTION_PATH),
+                    submissionData
+                );
+                
+                window.alertMessage(`檢查表提交成功！文件 ID: ${docRef.id}`, 'info');
+                
+                // 成功後切換到歷史記錄視圖
+                switchView('history');
+
+            } catch (e) {
+                console.error("寫入 Firestore 錯誤: ", e);
+                window.alertMessage("提交失敗，請檢查網路連線或權限。", 'error');
+            } finally {
+                // 4. 恢復按鈕狀態
+                submitButton.disabled = false;
+                submitButton.textContent = '提交檢查結果至資料庫';
+                submitButton.classList.remove('bg-gray-400');
+                submitButton.classList.add('bg-green-600');
+            }
+        }
+
+        /**
+         * 渲染歷史記錄 (History) 視圖
+         */
+        function renderHistoryView() {
+            mainContent.innerHTML = `
+                <div class="max-w-6xl mx-auto">
+                    <header class="text-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">滅鼠檢查歷史記錄</h2>
+                        <p class="text-gray-500 mt-1">實時更新所有用戶提交的記錄</p>
+                    </header>
+                    <div class="text-xs text-center text-indigo-500 mb-4">
+                        <p>注意: 為了性能和避免索引問題，此列表未排序。最新的記錄可能不會出現在最上方。</p>
+                    </div>
+                    <div id="history-list" class="space-y-4">
+                        <!-- 載入中的提示 -->
+                        <div class="text-center py-10 text-gray-500" id="loading-spinner">
+                            <svg class="animate-spin h-8 w-8 mx-auto text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p class="mt-3">正在從 Firestore 載入歷史記錄...</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 開始監聽 Firestore 資料
+            setupHistoryListener();
+        }
+        
+        /**
+         * 設置 Firestore 歷史記錄實時監聽
+         */
+        function setupHistoryListener() {
+            if (!window.isAuthReady || !window.userId) {
+                // 在認證未完成前不執行查詢
+                return;
+            }
+            
+            const historyList = document.getElementById('history-list');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            
+            // 由於避免使用 orderBy，我們只使用基礎查詢
+            const q = window.firebaseExports.query(
+                window.firebaseExports.collection(window.db, window.COLLECTION_PATH)
+            );
+
+            // 實時監聽
+            window.firebaseExports.onSnapshot(q, (querySnapshot) => {
+                let htmlContent = '';
+                const records = [];
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    records.push({ id: doc.id, ...data });
+                });
+                
+                // 雖然 Firestore 查詢未排序，我們可以在前端按提交時間(如果存在)或 ID 排序
+                records.sort((a, b) => {
+                    const timeA = a.submissionTime ? a.submissionTime.toMillis() : 0;
+                    const timeB = b.submissionTime ? b.submissionTime.toMillis() : 0;
+                    return timeB - timeA; // 最新提交在前面
+                });
+
+                if (records.length === 0) {
+                    htmlContent = `<p class="text-center py-10 text-gray-500">目前沒有檢查記錄。</p>`;
+                } else {
+                    htmlContent = records.map(record => createHistoryCard(record)).join('');
+                }
+
+                historyList.innerHTML = htmlContent;
+                if (loadingSpinner) loadingSpinner.remove();
+
+            }, (error) => {
+                console.error("Firestore 監聽錯誤: ", error);
+                historyList.innerHTML = `<p class="text-center py-10 text-red-500">載入記錄失敗: ${error.message}</p>`;
+                if (loadingSpinner) loadingSpinner.remove();
+            });
+        }
+
+        /**
+         * 創建歷史記錄卡片 HTML
+         */
+        function createHistoryCard(record) {
+            const submitTime = record.submissionTime ? new Date(record.submissionTime.toMillis()).toLocaleString('zh-TW') : 'N/A';
+            const unsatisfactoryCount = record.checklistItems.filter(item => item.status === '欠妥').length;
+
+            let detailsHtml = record.checklistItems.map(item => {
+                const statusColor = item.status === '滿意' ? 'text-green-600' : 'text-red-600';
+                const notesHtml = item.correction_notes ? 
+                    `<p class="text-xs mt-1 italic text-red-500 bg-red-50 p-1 rounded">備註: ${item.correction_notes}</p>` : '';
+                
+                return `
+                    <li class="py-1 border-b border-gray-100 last:border-b-0">
+                        <span class="font-bold mr-2 text-gray-600">${item.id}.</span> 
+                        <span class="${statusColor} font-semibold">${item.status}</span> 
+                        <span class="text-sm text-gray-500">${item.description.substring(4)}</span>
+                        ${notesHtml}
+                    </li>
+                `;
+            }).join('');
+            
+            return `
+                <div class="history-card p-4 border border-gray-200 rounded-lg shadow-md bg-white hover:shadow-lg transition duration-200">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-2 mb-2">
+                        <h4 class="text-lg font-bold text-indigo-700">檢查日期: ${record.checkDate}</h4>
+                        <span class="text-sm text-gray-500 mt-1 sm:mt-0">提交時間: ${submitTime}</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 text-sm mb-3">
+                        <p><strong>檢查人員:</strong> ${record.inspectorName}</p>
+                        <p><strong>電子簽名:</strong> ${record.inspectorSignature}</p>
+                        <p><strong>提交者 ID:</strong> <span class="text-xs break-all text-indigo-500">${record.submitterId}</span></p>
+                        <p><strong>欠妥項目數量:</strong> <span class="font-bold ${unsatisfactoryCount > 0 ? 'text-red-600' : 'text-green-600'}">${unsatisfactoryCount} / ${record.checklistItems.length}</span></p>
+                    </div>
+
+                    <details class="mt-3">
+                        <summary class="font-semibold text-gray-700 cursor-pointer p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-150">
+                            點擊查看所有檢查項目詳情 (${record.checklistItems.length} 項)
+                        </summary>
+                        <ul class="mt-2 pl-4 max-h-96 overflow-y-auto no-scrollbar border border-gray-100 rounded-md p-2">
+                            ${detailsHtml}
+                        </ul>
+                    </details>
+                </div>
+            `;
+        }
+
+        // --- Application Control ---
+        
+        /**
+         * 切換當前應用程式視圖
+         */
+        function switchView(viewName) {
+            currentView = viewName;
+            
+            // 更新導航按鈕樣式
+            navNewBtn.classList.remove('bg-indigo-300');
+            navHistoryBtn.classList.remove('bg-indigo-300');
+            navNewBtn.classList.add('bg-indigo-500');
+            navHistoryBtn.classList.add('bg-indigo-500');
+
+            if (viewName === 'new') {
+                navNewBtn.classList.remove('bg-indigo-500');
+                navNewBtn.classList.add('bg-indigo-300');
+                renderNewChecklistView();
+            } else if (viewName === 'history') {
+                navHistoryBtn.classList.remove('bg-indigo-500');
+                navHistoryBtn.classList.add('bg-indigo-300');
+                renderHistoryView();
+            }
+        }
+
+        // 導航事件監聽器
+        navNewBtn.addEventListener('click', () => switchView('new'));
+        navHistoryBtn.addEventListener('click', () => switchView('history'));
+
+        /**
+         * 應用程式初始化 (由 Firebase 認證完成後呼叫)
+         */
+        window.initApp = function() {
+            // 預設載入新檢查表視圖
+            switchView(currentView);
+        };
+        
+        // 如果認證已經準備好 (在某些環境下可能會很快)，則立即初始化
+        if (window.isAuthReady) {
+             window.initApp();
+        }
+        
+    </script>
+</body>
+</html>
+
