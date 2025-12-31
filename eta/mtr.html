@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>港鐵實時列車服務資訊</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        
+        :root {
+            --mtr-red: #A61022;
+            --mtr-red-dark: #800c1a;
+            --glass: rgba(255, 255, 255, 0.95);
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: #f0f2f5;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(166, 16, 34, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(128, 12, 26, 0.1) 0px, transparent 50%);
+            min-height: 100vh;
+        }
+
+        .mtr-gradient-bg {
+            background: linear-gradient(135deg, var(--mtr-red) 0%, var(--mtr-red-dark) 100%);
+        }
+
+        .glass-card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .line-tag {
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        /* 路綫顏色定義 */
+        .bg-AEL { background-color: #007078; }
+        .bg-TCL { background-color: #ff9231; }
+        .bg-TKL { background-color: #7d4097; }
+        .bg-TML { background-color: #9a3820; }
+        .bg-EAL { background-color: #5eb6e4; }
+        .bg-ISL { background-color: #007bc3; }
+        .bg-TWL { background-color: #ff0000; }
+        .bg-KTL { background-color: #00af41; }
+        .bg-SIL { background-color: #b5bd00; }
+
+        .train-row:last-child { border-bottom: none; }
+        
+        .timer-badge {
+            background: #fef2f2;
+            color: var(--mtr-red);
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-weight: 700;
+            border: 1px solid #fee2e2;
+        }
+
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .animate-pulse-soft { animation: pulse-soft 2s infinite; }
+    </style>
+</head>
+<body class="p-4 md:p-6 lg:p-10">
+    <div class="max-w-4xl mx-auto">
+        <!-- 標題欄 -->
+        <header class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 mtr-gradient-bg rounded-lg flex items-center justify-center shadow-lg">
+                    <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">港鐵班次預報</h1>
+                    <p class="text-xs text-gray-500 font-medium tracking-wider">MTR REAL-TIME SCHEDULE</p>
+                </div>
+            </div>
+            <div class="hidden md:block text-right">
+                <div id="clock" class="text-xl font-mono font-bold text-gray-700">00:00:00</div>
+                <div class="text-[10px] text-gray-400">數據來源：資料一線通</div>
+            </div>
+        </header>
+
+        <!-- 選擇器卡片 -->
+        <div class="glass-card p-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
+                <div class="md:col-span-5">
+                    <label class="block text-xs font-bold text-gray-400 mb-2 ml-1">選擇路綫 LINE</label>
+                    <select id="lineSelect" class="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all cursor-pointer text-gray-700 font-medium">
+                        <option value="TCL">東涌綫 Tung Chung Line</option>
+                        <option value="TWL" selected>荃灣綫 Tsuen Wan Line</option>
+                        <option value="AEL">機場快綫 Airport Express</option>
+                        <option value="TKL">將軍澳綫 Tseung Kwan O Line</option>
+                        <option value="TML">屯馬綫 Tuen Ma Line</option>
+                        <option value="EAL">東鐵綫 East Rail Line</option>
+                        <option value="ISL">港島綫 Island Line</option>
+                        <option value="KTL">觀塘綫 Kwun Tong Line</option>
+                        <option value="SIL">南港島綫 South Island Line</option>
+                    </select>
+                </div>
+                <div class="md:col-span-5">
+                    <label class="block text-xs font-bold text-gray-400 mb-2 ml-1">選擇車站 STATION</label>
+                    <select id="stationSelect" class="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all cursor-pointer text-gray-700 font-medium">
+                        <!-- JS 動態填充 -->
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <button id="fetchBtn" class="w-full mtr-gradient-bg text-white font-bold py-3.5 rounded-xl hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-95 flex items-center justify-center gap-2">
+                        <span id="btnText">搜尋</span>
+                        <div id="loader" class="hidden w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 結果顯示區 -->
+        <div id="resultsArea" class="hidden space-y-6">
+            <div class="flex items-center gap-3 px-2">
+                <div id="lineColorTag" class="w-2 h-8 rounded-full"></div>
+                <h2 id="stationTitle" class="text-2xl font-bold text-gray-800">---</h2>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 上行卡片 -->
+                <div class="glass-card overflow-hidden border-t-4 border-gray-200" id="upCardBorder">
+                    <div class="px-5 py-4 bg-gray-50/50 flex justify-between items-center border-b">
+                        <span class="text-sm font-bold text-gray-600 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                            上行 UP
+                        </span>
+                        <span id="upHeader" class="text-xs font-bold text-gray-400 uppercase">月台預報</span>
+                    </div>
+                    <div id="upContent" class="divide-y divide-gray-100">
+                        <!-- JS 填充 -->
+                    </div>
+                </div>
+
+                <!-- 下行卡片 -->
+                <div class="glass-card overflow-hidden border-t-4 border-gray-200" id="downCardBorder">
+                    <div class="px-5 py-4 bg-gray-50/50 flex justify-between items-center border-b">
+                        <span class="text-sm font-bold text-gray-600 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                            下行 DOWN
+                        </span>
+                        <span id="downHeader" class="text-xs font-bold text-gray-400 uppercase">月台預報</span>
+                    </div>
+                    <div id="downContent" class="divide-y divide-gray-100">
+                        <!-- JS 填充 -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex flex-col md:flex-row justify-between items-center px-4 gap-4">
+                <div id="lastUpdate" class="text-[10px] font-bold text-gray-400 uppercase tracking-widest"></div>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span class="text-[10px] font-bold text-gray-500 uppercase">自動刷新已啟用</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="welcomeMsg" class="flex flex-col items-center justify-center py-20 text-gray-400 space-y-4">
+            <svg class="w-16 h-16 opacity-20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+            <p class="font-medium">請選擇路綫及車站開始查詢</p>
+        </div>
+    </div>
+
+    <script>
+        const stationData = {
+            "AEL": { name: "機場快綫", color: "#007078", stations: { "HOK": "香港", "KOW": "九龍", "TSY": "青衣", "AIR": "機場", "AWE": "博覽館" } },
+            "TCL": { name: "東涌綫", color: "#ff9231", stations: { "HOK": "香港", "KOW": "九龍", "OLY": "奧運", "NAC": "南昌", "LAK": "荔景", "TSY": "青衣", "SUN": "欣澳", "TUC": "東涌" } },
+            "TKL": { name: "將軍澳綫", color: "#7d4097", stations: { "NOP": "北角", "QUB": "鰂魚涌", "YAT": "油塘", "TIK": "調景嶺", "TKO": "將軍澳", "LHP": "康城", "HAH": "坑口", "POA": "寶琳" } },
+            "TML": { name: "屯馬綫", color: "#9a3820", stations: { "WKS": "烏溪沙", "MOS": "馬鞍山", "HEO": "恆安", "TSH": "大水坑", "SHM": "石門", "CIO": "第一城", "STW": "沙田圍", "CKW": "車公廟", "TAW": "大圍", "HIK": "顯徑", "DIW": "鑽石山", "KAT": "啟德", "SUW": "宋皇臺", "TKW": "土瓜灣", "HOM": "何文田", "HUH": "紅磡", "ETS": "尖東", "AUS": "柯士甸", "NAC": "南昌", "MEF": "美孚", "TWW": "荃灣西", "KSR": "錦上路", "YUL": "元朗", "LOP": "朗屏", "TIS": "天水圍", "SIH": "兆康", "TUM": "屯門" } },
+            "EAL": { name: "東鐵綫", color: "#5eb6e4", stations: { "ADM": "金鐘", "EXC": "會展", "HUH": "紅磡", "MKK": "旺角東", "KOT": "九龍塘", "TAW": "大圍", "SHT": "沙田", "FOT": "火炭", "RAC": "馬場", "UNI": "大學", "TAP": "大埔墟", "TWO": "太和", "FAN": "粉嶺", "SHS": "上水", "LOW": "羅湖", "LMC": "落馬洲" } },
+            "ISL": { name: "港島綫", color: "#007bc3", stations: { "KET": "堅尼地城", "HKU": "香港大學", "SYP": "西營盤", "SHW": "上環", "CEN": "中環", "ADM": "金鐘", "WAC": "灣仔", "CAB": "銅鑼灣", "TIH": "天后", "FOH": "炮台山", "NOP": "北角", "QUB": "鰂魚涌", "TAK": "太古", "SWH": "西灣河", "SKW": "筲箕灣", "HFC": "杏花邨", "CHW": "柴灣" } },
+            "TWL": { name: "荃灣綫", color: "#ff0000", stations: { "CEN": "中環", "ADM": "金鐘", "TST": "尖沙咀", "JOR": "佐敦", "YMT": "油麻地", "MOK": "旺角", "PRE": "太子", "SSP": "深水埗", "CSW": "長沙灣", "LCK": "荔枝角", "MEF": "美孚", "LAK": "荔景", "KWF": "葵芳", "KWH": "葵興", "TWH": "大窩口", "TSW": "荃灣" } },
+            "KTL": { name: "觀塘綫", color: "#00af41", stations: { "WHA": "黃埔", "HOM": "何文田", "YMT": "油麻地", "MOK": "旺角", "PRE": "太子", "SKM": "石硤尾", "KOT": "九龍塘", "LOF": "樂富", "WTS": "黃大仙", "DIW": "鑽石山", "CHH": "彩虹", "KOB": "九龍灣", "NTK": "牛頭角", "KWT": "觀塘", "LAT": "藍田", "YAT": "油塘", "TIK": "調景嶺" } },
+            "SIL": { name: "南港島綫", color: "#b5bd00", stations: { "ADM": "金鐘", "OCP": "海洋公園", "WCH": "黃竹坑", "LET": "利東", "SOH": "海怡半島" } }
+        };
+
+        let upTrains = [], downTrains = [];
+        let tickInterval;
+
+        function updateClock() {
+            const now = new Date();
+            $('#clock').text(now.getHours().toString().padStart(2, '0') + ':' + 
+                           now.getMinutes().toString().padStart(2, '0') + ':' + 
+                           now.getSeconds().toString().padStart(2, '0'));
+        }
+        setInterval(updateClock, 1000);
+
+        function parseTime(s) { 
+            if (!s) return new Date();
+            const p = s.split(/[- :]/).map(Number); 
+            return new Date(p[0], p[1] - 1, p[2], p[3], p[4], p[5]); 
+        }
+        
+        function fmtRemaining(targetDate) {
+            const diff = Math.max(0, Math.floor((targetDate.getTime() - new Date().getTime()) / 1000));
+            if (diff <= 30) return '<span class="text-red-600 font-bold animate-pulse-soft">即將到站</span>';
+            const m = Math.floor(diff / 60);
+            const s = diff % 60;
+            return `約 ${m} 分 ${s} 秒`;
+        }
+
+        function getStationName(code) {
+            for (const line in stationData) {
+                if (stationData[line].stations[code]) return stationData[line].stations[code];
+            }
+            return code;
+        }
+
+        function updateStationOptions() {
+            const line = $('#lineSelect').val();
+            const stations = stationData[line].stations;
+            const $select = $('#stationSelect').empty();
+            for (const [code, name] of Object.entries(stations)) {
+                $select.append(`<option value="${code}">${name}</option>`);
+            }
+        }
+
+        async function smartFetch(url) {
+            try {
+                const directResponse = await fetch(url);
+                if (directResponse.ok) return await directResponse.json();
+            } catch (e) {
+                console.warn("Direct fetch blocked, trying proxy...");
+            }
+
+            const proxies = [
+                (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}&t=${Date.now()}`,
+                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`
+            ];
+
+            for (let proxyFn of proxies) {
+                try {
+                    const response = await fetch(proxyFn(url), { timeout: 8000 });
+                    if (!response.ok) continue;
+                    const data = await response.json();
+                    return data.contents ? JSON.parse(data.contents) : data;
+                } catch (e) {
+                    console.warn("Proxy failing, retrying...");
+                }
+            }
+            throw new Error("Unable to fetch data");
+        }
+
+        async function fetchData() {
+            const line = $('#lineSelect').val();
+            const sta = $('#stationSelect').val();
+            if (!line || !sta) return;
+
+            $('#loader').show();
+            $('#btnText').text('搜尋中');
+            const apiUrl = `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${line}&sta=${sta}`;
+
+            try {
+                const data = await smartFetch(apiUrl);
+
+                if (data && data.status === 1) {
+                    const info = data.data[`${line}-${sta}`] || {};
+                    upTrains = (info.UP || []).map(t => ({...t, targetTime: parseTime(t.time)}));
+                    downTrains = (info.DOWN || []).map(t => ({...t, targetTime: parseTime(t.time)}));
+                    
+                    renderTables(line, sta);
+                    $('#lastUpdate').text(`LAST UPDATED: ${data.sys_time || new Date().toLocaleString()}`);
+                    $('#welcomeMsg').addClass('hidden');
+                    $('#resultsArea').removeClass('hidden');
+                } else {
+                    upTrains = [];
+                    downTrains = [];
+                    renderTables(line, sta);
+                    $('#lastUpdate').text(`暫無列車數據`);
+                }
+            } catch (err) {
+                console.error("API Error:", err);
+            } finally {
+                $('#loader').hide();
+                $('#btnText').text('搜尋');
+            }
+        }
+
+        function renderTables(line, sta) {
+            const config = stationData[line];
+            $('#stationTitle').text(`${config.name} - ${getStationName(sta)}`);
+            $('#lineColorTag').css('background-color', config.color);
+            $('#upCardBorder').css('border-top-color', config.color);
+            $('#downCardBorder').css('border-top-color', config.color);
+
+            const buildRows = (trains, type) => {
+                if (!trains || trains.length === 0) return `
+                    <div class="p-10 text-center text-gray-400">
+                        <p class="text-sm">此方向目前沒有預報</p>
+                    </div>`;
+                
+                const validDest = trains.find(t => t.dest);
+                if (validDest) {
+                    $(`#${type}Header`).text(`往 ${getStationName(validDest.dest)} 方向`);
+                }
+
+                return trains.map((t, i) => `
+                    <div class="train-row px-5 py-5 flex items-center justify-between hover:bg-gray-50/80 transition-colors">
+                        <div class="flex items-center gap-4">
+                            <div class="flex flex-col items-center">
+                                <span class="text-[10px] font-bold text-gray-300 uppercase">月台</span>
+                                <span class="text-lg font-bold text-gray-700">${t.plat || '-'}</span>
+                            </div>
+                            <div class="w-px h-8 bg-gray-100 mx-1"></div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="line-tag bg-${line}">${line}</span>
+                                    <span class="text-lg font-bold text-gray-800">${getStationName(t.dest)}</span>
+                                </div>
+                                <div class="text-[10px] text-gray-400 font-medium mt-0.5">預計 ${t.time ? t.time.split(' ')[1].substring(0, 5) : '--:--'}</div>
+                            </div>
+                        </div>
+                        <div id="${type}-timer-${i}" class="timer-badge">
+                            ${fmtRemaining(t.targetTime)}
+                        </div>
+                    </div>
+                `).join('');
+            };
+
+            $('#upContent').html(buildRows(upTrains, 'up'));
+            $('#downContent').html(buildRows(downTrains, 'down'));
+
+            clearInterval(tickInterval);
+            tickInterval = setInterval(updateTimers, 1000);
+        }
+
+        function updateTimers() {
+            upTrains.forEach((t, i) => {
+                const $timer = $(`#up-timer-${i}`);
+                if ($timer.length) $timer.html(fmtRemaining(t.targetTime));
+            });
+            downTrains.forEach((t, i) => {
+                const $timer = $(`#down-timer-${i}`);
+                if ($timer.length) $timer.html(fmtRemaining(t.targetTime));
+            });
+        }
+
+        $(document).ready(() => {
+            updateStationOptions();
+            $('#lineSelect').on('change', updateStationOptions);
+            $('#fetchBtn').on('click', fetchData);
+            setInterval(fetchData, 60000); // 每一分鐘自動從 API 獲取新數據
+        });
+    </script>
+</body>
+</html>
