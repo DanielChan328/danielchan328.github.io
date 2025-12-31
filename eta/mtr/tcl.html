@@ -38,6 +38,154 @@ tbody td{padding:10px 6px;border-bottom:1px dashed #e6f0fb;color:#0d2330;}
 @media(max-width:760px){.grid{grid-template-columns:1fr}form{width:100%;justify-content:space-between}}
 </style>
 </head>
+  
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>功能更新 - MTR ETA</title>
+    <style>
+        /* 頁面基本設置 */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f4f7f6; 
+            margin: 0; 
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 彈窗遮罩層 */
+        .overlay { 
+            position: fixed; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            background: rgba(0, 0, 0, 0.6); 
+            backdrop-filter: blur(4px); /* 背景模糊效果，更具現代感 */
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 9999;
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+        .overlay.show { 
+            visibility: visible; 
+            opacity: 1; 
+        }
+
+        /* 彈窗主體 */
+        .pop-card { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 16px; 
+            width: 85%; 
+            max-width: 420px; 
+            text-align: center; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            transform: translateY(20px);
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .overlay.show .pop-card { 
+            transform: translateY(0); 
+        }
+
+        /* 文字內容樣式 */
+        .icon { font-size: 50px; margin-bottom: 15px; }
+        h2 { color: #007aff; margin: 0 0 15px 0; font-size: 24px; }
+        p { 
+            color: #4a4a4a; 
+            line-height: 1.6; 
+            font-size: 16px;
+            margin-bottom: 25px;
+            text-align: left; /* 讓路線細節較易閱讀 */
+        }
+        .note {
+            font-size: 13px;
+            color: #8e8e93;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+            margin-top: 15px;
+        }
+
+        /* 按鈕樣式 */
+        .btn { 
+            background: #007aff; 
+            color: white; 
+            padding: 14px 0; 
+            border: none; 
+            border-radius: 12px; 
+            font-size: 18px; 
+            font-weight: bold;
+            text-decoration: none; 
+            display: block; 
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #0056b3; }
+
+        /* 關閉連結 */
+        .close-link {
+            display: inline-block;
+            margin-top: 15px;
+            color: #8e8e93;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <p>正在載入主頁面內容...</p>
+
+    <div class="overlay" id="updatePop">
+        <div class="pop-card">
+            <div class="icon">🚆</div>
+            <h2>全新功能，立即使用吧！</h2>
+            <p>
+                現在已經支援大部份全港港鐵路線及車站。
+                <br><br>
+                <span style="color: #666;">即時掌握到站時間，行程更有預算！</span>
+            </p>
+            
+            <a href="https://files.danielchan.idv.hk/eta/mtr.html" class="btn">立即體驗</a>
+            
+            <div class="note">
+                * 不包括迪士尼綫欣澳站及迪士尼站
+            </div>
+
+            <span class="close-link" onclick="closePop()">稍後再說</span>
+        </div>
+    </div>
+
+    <script>
+        const overlay = document.getElementById('updatePop');
+
+        function openPop() {
+            overlay.classList.add('show');
+        }
+
+        function closePop() {
+            overlay.classList.remove('show');
+        }
+
+        // 頁面載入 1.2 秒後彈出，增加互動感
+        window.onload = () => {
+            setTimeout(openPop, 1200);
+        };
+
+        // 點擊遮罩背景也可以關閉
+        overlay.onclick = function(e) {
+            if (e.target === overlay) closePop();
+        };
+    </script>
+</body>
+</html>
+
 <body>
 <div class="wrap">
 <header>
