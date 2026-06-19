@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安全登機資料提交系統</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: #333; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); max-width: 450px; width: 90%; text-align: center; }
+        h2 { color: #1e3a8a; margin-bottom: 15px; font-size: 20px; }
+        p { font-size: 14px; color: #666; margin-bottom: 20px; line-height: 1.5; }
+        .hint-box { font-size: 18px; font-weight: bold; color: #2563eb; background: #eff6ff; padding: 10px; border-radius: 6px; margin-bottom: 20px; letter-spacing: 2px; }
+        .input-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; color: #4b5563; }
+        .phone-input-container { display: flex; gap: 5px; }
+        .prefix { background: #e5e7eb; padding: 12px; border: 1px solid #ccc; border-radius: 6px 0 0 6px; font-weight: bold; font-size: 16px; }
+        input[type="tel"] { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 0 6px 6px 0; font-size: 16px; letter-spacing: 1px; }
+        button { width: 100%; background-color: #25D366; color: white; border: none; padding: 14px; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+        button:hover { background-color: #128C7E; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>安全身份驗證</h2>
+    <p>為保障個人私隱，請先輸入正確的<b>家居電話號碼</b>以開啟 WhatsApp 登機資料表格。</p>
+    
+    <div class="hint-box">提示：+852 2******0</div>
+    
+    <form onsubmit="redirectToWhatsApp(event)">
+        <div class="input-group">
+            <label for="homePhone">請輸入完整 8 位數字家居電話：</label>
+            <div class="phone-input-container">
+                <span class="prefix">+852</span>
+                <input type="tel" id="homePhone" placeholder="2XXXXXX0" maxlength="8" pattern="2[0-9]{6}0" required title="請輸入以 2 開頭、0 結尾的 8 位數字電話">
+            </div>
+        </div>
+        <button type="submit">確認並跳轉至 WhatsApp</button>
+    </form>
+</div>
+
+<script>
+    function redirectToWhatsApp(event) {
+        event.preventDefault();
+        
+        // 獲取用戶自行填寫的完整電話號碼
+        const userEnteredPhone = document.getElementById('homePhone').value.trim();
+        
+        // 格式化為國際機碼格式
+        const targetPhoneNumber = "852" + userEnteredPhone;
+        
+        // 排版文字（第七題預設幫佢填埋利用WhatsApp號碼）
+        const textMessage = "✈️ 網上登機資料提交 ✈️\n\n" +
+                            "1. 乘客英文全名 (跟護照)：\n" +
+                            "2. 性別 (Gender)：\n" +
+                            "3. 出生日期 (DD/MM/YYYY)：\n" +
+                            "4. 護照號碼：\n" +
+                            "5. 護照簽發國家/地區：\n" +
+                            "6. 護照有效日期 (DD/MM/YYYY)：\n" +
+                            "7. 聯絡電話：利用WhatsApp的電話號碼\n" +
+                            "8. 電郵地址：";
+
+        // 產生動態跳轉連結
+        const whatsappUrl = `https://wa.me/${targetPhoneNumber}?text=${encodeURIComponent(textMessage)}`;
+
+        // 即時跳轉
+        window.location.href = whatsappUrl;
+    }
+</script>
+
+</body>
+</html>
